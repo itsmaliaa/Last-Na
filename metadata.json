@@ -1,0 +1,6 @@
+{
+  "name": "RED NEXUS - CAFA Fine Arts Marketplace & Admin Portal",
+  "description": "An e-commerce marketplace and administration platform connecting emerging CAFA student artists with collectors and buyers, featuring art verification, student accreditation, audit logs, and curated galleries.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
