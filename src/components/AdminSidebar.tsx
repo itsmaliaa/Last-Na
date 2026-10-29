@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   LayoutGrid,
   TrendingUp,
+  Landmark,
   Palette,
   Shield,
   KeyRound,
@@ -15,6 +16,7 @@ import {
   ChevronUp,
   Menu,
   ShieldAlert,
+  Search,
 } from 'lucide-react';
 import { AdminTab } from '../types';
 
@@ -83,6 +85,19 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           <span>Sales</span>
         </button>
 
+        {/* Bank Account & Escrow */}
+        <button
+          onClick={() => onSelectTab('bank_account')}
+          className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-medium transition-all text-left cursor-pointer ${
+            currentTab === 'bank_account'
+              ? 'bg-white text-[#8E1B24] font-semibold shadow-md translate-x-1'
+              : 'text-white/85 hover:text-white hover:bg-white/10'
+          }`}
+        >
+          <Landmark className="w-4 h-4 shrink-0" />
+          <span>Bank &amp; Escrow</span>
+        </button>
+
         {/* Art Verification */}
         <button
           onClick={() => onSelectTab('art_verification')}
@@ -107,6 +122,19 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
               {pendingArtsCount}
             </span>
           )}
+        </button>
+
+        {/* Check Artwork Authenticity */}
+        <button
+          onClick={() => onSelectTab('authenticity_check')}
+          className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-medium transition-all text-left cursor-pointer ${
+            currentTab === 'authenticity_check'
+              ? 'bg-white text-[#8E1B24] font-semibold shadow-md translate-x-1'
+              : 'text-white/85 hover:text-white hover:bg-white/10'
+          }`}
+        >
+          <Search className="w-4 h-4 shrink-0" />
+          <span>Check Artwork Authenticity</span>
         </button>
 
         {/* Manage Users Dropdown */}

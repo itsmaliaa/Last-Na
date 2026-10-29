@@ -14,6 +14,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { Artwork } from '../../types';
+import { ARTWORK_CATEGORIES, getArtworkCategoryLabel } from '../../utils/artworkCategories';
 
 interface SellerStockViewProps {
   artworks: Artwork[];
@@ -29,6 +30,7 @@ export const SellerStockView: React.FC<SellerStockViewProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'in_stock' | 'low_stock' | 'out_of_stock'>('all');
+  const [categoryFilter, setCategoryFilter] = useState<Artwork['category'] | 'all'>('all');
 
   // Local state for stock quantities per artwork
   const [stockMap, setStockMap] = useState<Record<string, number>>(() => {
@@ -87,7 +89,7 @@ export const SellerStockView: React.FC<SellerStockViewProps> = ({
       art.artist.toLowerCase().includes(searchTerm.toLowerCase());
 
     const stock = stockMap[art.id] ?? 1;
-    if (!matchesSearch) return false;
+    if (!matchesSearch || (categoryFilter !== 'all' && art.category !== categoryFilter)) return false;
 
     if (filterType === 'in_stock') return stock > 2;
     if (filterType === 'low_stock') return stock > 0 && stock <= 2;
@@ -107,13 +109,7 @@ export const SellerStockView: React.FC<SellerStockViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Summary KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-neutral-200/80 shadow-2xs">
-          <p className="text-xs font-normal text-black">Total Catalog</p>
-          <h3 className="text-2xl font-normal text-black mt-1">{totalItems} Works</h3>
-          <p className="text-xs font-normal text-black mt-0.5">Studio catalog</p>
-        </div>
-
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white p-5 rounded-2xl border border-neutral-200/80 shadow-2xs">
           <p className="text-xs font-normal text-black">In Stock</p>
           <h3 className="text-2xl font-normal text-black mt-1">{inStockCount} Works</h3>
@@ -145,6 +141,21 @@ export const SellerStockView: React.FC<SellerStockViewProps> = ({
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm bg-neutral-50/70 border border-neutral-200 rounded-xl focus:outline-none focus:border-red-500 focus:bg-white transition-all text-slate-900"
             />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <label htmlFor="stock-category" className="text-xs font-bold text-slate-700">Artwork category</label>
+            <select
+              id="stock-category"
+              value={categoryFilter}
+              onChange={(event) => setCategoryFilter(event.target.value as Artwork['category'] | 'all')}
+              className="rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs text-slate-700"
+            >
+              <option value="all">All categories</option>
+              {ARTWORK_CATEGORIES.map((item) => (
+                <option key={item.value} value={item.value}>{item.label}</option>
+              ))}
+            </select>
           </div>
 
           {/* Filter Pills */}
@@ -245,7 +256,8 @@ export const SellerStockView: React.FC<SellerStockViewProps> = ({
                     </div>
 
                     <p className="text-xs text-neutral-500">
-                      Medium: <span className="text-slate-700 font-medium">{art.category}</span> · Size: {art.size}
+                      Category: <span className="text-slate-700 font-medium">{getArtworkCategoryLabel(art.category)}</span>
+                      {' · Medium: '}{art.mediumsUsed || 'Not specified'} · Size: {art.size}
                     </p>
 
                     <p className="text-xs font-bold text-slate-900">

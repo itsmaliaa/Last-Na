@@ -315,6 +315,20 @@ export const initialArtworks: Artwork[] = [
     isFavorited: false,
     heartsCount: 367,
   },
+  {
+    id: 'art-sample-rejected',
+    title: 'Unfinished Evening Study',
+    artist: 'Malia Santos',
+    image: autumnCourtyardImg,
+    price: 4200,
+    size: '40x50 cm',
+    status: 'rejected',
+    reviewNotes: 'Please upload a clearer image of the full artwork and include the artwork dimensions before resubmitting.',
+    description: 'A sample rejected product used to demonstrate faculty review feedback.',
+    mediumsUsed: 'Oil on Canvas',
+    category: 'painting',
+    isActive: false,
+  },
 ];
 
 export const initialRankedArtists: RankedArtist[] = [
@@ -833,6 +847,52 @@ export const initialArtistsDirectory: ArtistDirectoryItem[] = [
 ];
 
 // Seller Portal Orders & Transactions
+export const sampleSellerTransactions: SellerOrderTransaction[] = [
+  {
+    id: 'sample-tx-to-ship',
+    artwork: 'Golden Hour Reflections',
+    artist: 'Malia Santos',
+    buyer: 'Isabella Cruz',
+    date: 'Oct 25, 2026',
+    grossAmount: 8500,
+    platformTakeRate: 0,
+    platformTakeAmount: 0,
+    netStudentPayout: 8500,
+    status: 'Pending',
+    orderNumber: 'RN-2026-1042',
+    deliveryMethod: 'door_to_door',
+    paymentMethod: 'Cash on delivery',
+    deliveryAddress: '24 Sampaguita Street, Quezon City, Metro Manila',
+    fulfillmentStatus: 'Processing',
+  },
+  {
+    id: 'sample-tx-shipped',
+    artwork: 'Clay & Void Study',
+    artist: 'Malia Santos',
+    buyer: 'Noah Reyes',
+    date: 'Oct 24, 2026',
+    grossAmount: 12400,
+    platformTakeRate: 0,
+    platformTakeAmount: 0,
+    netStudentPayout: 12400,
+    status: 'Shipped',
+    orderNumber: 'RN-2026-1037',
+    deliveryMethod: 'door_to_door',
+    paymentMethod: 'Cash on delivery',
+    deliveryAddress: '18 Mabini Avenue, Makati City, Metro Manila',
+    fulfillmentStatus: 'Shipped',
+    shippingProvider: 'J&T Express',
+    trackingNumber: 'JT202610240037',
+    trackingUrl: 'https://www.jtexpress.ph/trajectoryQuery?billcode=JT202610240037',
+    parcelWeightKg: 2.4,
+    parcelLengthCm: 50,
+    parcelWidthCm: 40,
+    parcelHeightCm: 35,
+    deliveryRiderName: 'Marco Dela Cruz',
+    deliveryRiderPhone: '09171234567',
+  },
+];
+
 export const initialSellerTransactions: SellerOrderTransaction[] = [
   {
     id: 'tx-1',
@@ -846,6 +906,7 @@ export const initialSellerTransactions: SellerOrderTransaction[] = [
     netStudentPayout: 12000,
     status: 'Completed',
   },
+  ...sampleSellerTransactions,
 ];
 
 // Seller Vouchers
@@ -899,4 +960,3 @@ export const initialSellerAnnouncements: SellerAnnouncement[] = [
     viewsCount: 640,
   },
 ];
-

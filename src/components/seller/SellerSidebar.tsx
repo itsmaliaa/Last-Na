@@ -16,6 +16,8 @@ import {
   ShieldCheck,
   Tag,
   Sparkles,
+  Award,
+  Search,
 } from 'lucide-react';
 import { SellerTab } from '../../types';
 
@@ -34,7 +36,7 @@ export const SellerSidebar: React.FC<SellerSidebarProps> = ({
 }) => {
   // State for dropdowns
   const [isOrderOpen, setIsOrderOpen] = useState(
-    currentTab === 'order' || currentTab === 'stock'
+    currentTab === 'order' || currentTab === 'shipping_fulfillment' || currentTab === 'stock'
   );
   const [isArtVerificationOpen, setIsArtVerificationOpen] = useState(
     currentTab === 'art_verification' || currentTab === 'artist_gallery'
@@ -42,10 +44,13 @@ export const SellerSidebar: React.FC<SellerSidebarProps> = ({
   const [isVoucherPromotionsOpen, setIsVoucherPromotionsOpen] = useState(
     currentTab === 'voucher_generator' || currentTab === 'discount_code' || currentTab === 'promotions'
   );
+  const [isAuthenticityOpen, setIsAuthenticityOpen] = useState(
+    currentTab === 'certificate' || currentTab === 'authenticity_check'
+  );
 
   // Auto-expand when external navigation occurs (e.g. from Dashboard or Gallery buttons)
   useEffect(() => {
-    if (currentTab === 'order' || currentTab === 'stock') {
+    if (currentTab === 'order' || currentTab === 'shipping_fulfillment' || currentTab === 'stock') {
       setIsOrderOpen(true);
     }
   }, [currentTab]);
@@ -59,6 +64,12 @@ export const SellerSidebar: React.FC<SellerSidebarProps> = ({
   useEffect(() => {
     if (currentTab === 'voucher_generator' || currentTab === 'discount_code' || currentTab === 'promotions') {
       setIsVoucherPromotionsOpen(true);
+    }
+  }, [currentTab]);
+
+  useEffect(() => {
+    if (currentTab === 'certificate' || currentTab === 'authenticity_check') {
+      setIsAuthenticityOpen(true);
     }
   }, [currentTab]);
 
@@ -89,10 +100,15 @@ export const SellerSidebar: React.FC<SellerSidebarProps> = ({
     }
   };
 
-  const isOrderActive = currentTab === 'order' || currentTab === 'stock';
+  const handleAuthenticityParentClick = () => {
+    setIsAuthenticityOpen((isOpen) => !isOpen);
+  };
+
+  const isOrderActive = currentTab === 'order' || currentTab === 'shipping_fulfillment' || currentTab === 'stock';
   const isArtVerificationActive = currentTab === 'art_verification' || currentTab === 'artist_gallery';
   const isVoucherPromotionsActive =
     currentTab === 'voucher_generator' || currentTab === 'discount_code' || currentTab === 'promotions';
+  const isAuthenticityActive = currentTab === 'certificate' || currentTab === 'authenticity_check';
 
   return (
     <aside className="w-64 bg-[#8E1B24] text-white min-h-[calc(100vh-4.5rem)] flex flex-col shrink-0 select-none rounded-tr-3xl transition-all shadow-xl pb-8">
@@ -167,7 +183,7 @@ export const SellerSidebar: React.FC<SellerSidebarProps> = ({
                 type="button"
                 onClick={() => onSelectTab('order')}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition-all text-left cursor-pointer ${
-                  currentTab === 'order'
+                  currentTab === 'order' || currentTab === 'shipping_fulfillment'
                     ? 'bg-white text-slate-900 font-bold shadow-xs'
                     : 'text-white/80 hover:text-white hover:bg-white/10'
                 }`}
@@ -176,7 +192,7 @@ export const SellerSidebar: React.FC<SellerSidebarProps> = ({
                   <ClipboardList className="w-4 h-4 shrink-0" />
                   <span>Manage Order</span>
                 </div>
-                {currentTab !== 'order' && (
+                {currentTab !== 'order' && currentTab !== 'shipping_fulfillment' && (
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-white/15 text-white">
                     3
                   </span>
@@ -426,6 +442,66 @@ export const SellerSidebar: React.FC<SellerSidebarProps> = ({
                   <Sparkles className="w-4 h-4 shrink-0" />
                   <span>Promotions</span>
                 </div>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Authenticity tools dropdown */}
+        <div>
+          <button
+            type="button"
+            onClick={handleAuthenticityParentClick}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-full font-medium transition-all text-left cursor-pointer group ${
+              isAuthenticityActive && !isAuthenticityOpen
+                ? 'bg-white text-slate-900 font-bold shadow-sm'
+                : isAuthenticityActive
+                ? 'bg-white/15 text-white font-bold'
+                : 'text-white/85 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            <div className="flex items-center gap-3.5 min-w-0">
+              <ShieldCheck
+                className={`w-4.5 h-4.5 shrink-0 transition-colors ${
+                  isAuthenticityActive && !isAuthenticityOpen
+                    ? 'text-slate-900'
+                    : 'text-white/85 group-hover:text-white'
+                }`}
+              />
+              <span className="truncate">Authenticity</span>
+            </div>
+            <ChevronDown
+              className={`w-4 h-4 text-white/70 transition-transform duration-200 ${
+                isAuthenticityOpen ? 'rotate-180 text-white' : ''
+              }`}
+            />
+          </button>
+
+          {isAuthenticityOpen && (
+            <div className="ml-5 pl-3 border-l-2 border-white/20 space-y-1 mt-1 mb-2 animate-in fade-in slide-in-from-top-1 duration-200">
+              <button
+                type="button"
+                onClick={() => onSelectTab('certificate')}
+                className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition-all text-left cursor-pointer ${
+                  currentTab === 'certificate'
+                    ? 'bg-white text-slate-900 font-bold shadow-xs'
+                    : 'text-white/80 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <Award className="w-4 h-4 shrink-0" />
+                <span>Certificate of Authenticity</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onSelectTab('authenticity_check')}
+                className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition-all text-left cursor-pointer ${
+                  currentTab === 'authenticity_check'
+                    ? 'bg-white text-slate-900 font-bold shadow-xs'
+                    : 'text-white/80 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <Search className="w-4 h-4 shrink-0" />
+                <span>Check Artwork Authenticity</span>
               </button>
             </div>
           )}

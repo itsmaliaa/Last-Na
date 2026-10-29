@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   Package,
   MapPin,
+  Truck,
   MessageSquare,
   Shield,
   KeyRound,
@@ -27,12 +28,15 @@ import {
   Lock,
   ShieldCheck,
 } from 'lucide-react';
-import { BuyerTab, OrderItem, Conversation } from '../types';
+import { BuyerAddress, BuyerTab, OrderItem, Conversation } from '../types';
 
 interface BuyerProfileViewProps {
   currentTab: BuyerTab;
   onSelectTab: (tab: BuyerTab) => void;
   orders: OrderItem[];
+  userName: string;
+  addressData: BuyerAddress;
+  onUpdateAddress: (address: BuyerAddress) => void;
   conversations: Conversation[];
   onSendMessage: (conversationId: string, text: string) => void;
   onNavigateToHearts: () => void;
@@ -44,6 +48,9 @@ export const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
   currentTab,
   onSelectTab,
   orders,
+  userName,
+  addressData,
+  onUpdateAddress,
   conversations,
   onSendMessage,
   onNavigateToHearts,
@@ -59,14 +66,12 @@ export const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
   const [convSearch, setConvSearch] = useState<string>('');
   const [showEditAddressModal, setShowEditAddressModal] = useState<boolean>(false);
   const [showEditProfileModal, setShowEditProfileModal] = useState<boolean>(false);
+  const [addressDraft, setAddressDraft] = useState(addressData);
 
-  // Address state
-  const [addressData, setAddressData] = useState({
-    name: 'Ana R.',
-    line1: 'Unit 402, J. P. Rizal St., Brgy. Diliman',
-    city: 'Quezon City, Metro Manila 1101',
-    phone: '+63 917 842 4821',
-  });
+  const openEditAddress = () => {
+    setAddressDraft(addressData);
+    setShowEditAddressModal(true);
+  };
 
   const selectedConversation =
     conversations.find((c) => c.id === selectedConvId) || conversations[1];
@@ -80,7 +85,9 @@ export const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
   };
 
   const filteredOrders = orders.filter((order) => {
-    if (orderFilter === 'in_progress') return order.status === 'In transit';
+    if (orderFilter === 'in_progress') {
+      return ['Processing', 'Ready for pickup', 'In transit'].includes(order.status);
+    }
     if (orderFilter === 'returns') return order.status === 'Return eligible';
     if (orderFilter === 'completed') return order.status === 'Completed';
     return true;
@@ -114,11 +121,11 @@ export const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
                     <div className="w-16 h-16 rounded-full overflow-hidden mb-2.5 border-2 border-red-100 shadow-2xs bg-neutral-100">
                       <img
                         src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80"
-                        alt="Ana Reyes"
+                        alt={userName}
                         className="w-full h-full object-cover"
                       />
                     </div>
-                    <h3 className="font-extrabold text-sm text-slate-900">Ana Reyes</h3>
+                    <h3 className="font-extrabold text-sm text-slate-900">{userName}</h3>
                     <p className="text-[11px] text-neutral-500 mt-0.5">Buyer since 2024</p>
                     <button
                       onClick={() => setShowEditProfileModal(true)}
@@ -243,7 +250,7 @@ export const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
                 <div className="w-8 h-8 rounded-full overflow-hidden border border-neutral-200 my-1">
                   <img
                     src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80"
-                    alt="Ana Reyes"
+                    alt={userName}
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -444,9 +451,11 @@ export const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
                               <h4 className="font-extrabold text-sm text-slate-900">{order.title}</h4>
                               <span
                                 className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                  order.status === 'In transit'
+                                  order.status === 'In transit' || order.status === 'Processing'
                                     ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                                    : order.status === 'Return eligible'
+                                  : order.status === 'Ready for pickup'
+                                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                  : order.status === 'Return eligible'
                                     ? 'bg-amber-50 text-amber-700 border border-amber-200'
                                     : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                                 }`}
@@ -460,6 +469,72 @@ export const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
                             <p className="text-[11px] text-neutral-400 mt-0.5">
                               {order.orderNumber} · {order.dateInfo}
                             </p>
+                            {(order.deliveryMethod === 'door_to_door' ||
+                              (!order.deliveryMethod && ['Processing', 'In transit'].includes(order.status))) && (
+                              <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/70 p-3 text-xs text-blue-950">
+                                <div className="flex items-center gap-2 font-bold">
+                                  <Truck className="h-4 w-4 shrink-0" />
+                                  Seller-arranged shipping
+                                </div>
+                                {order.shippingProvider && order.trackingNumber ? (
+                                  <div className="mt-2 space-y-1">
+                                    <p>Carrier: <strong>{order.shippingProvider}</strong></p>
+                                    <p>Tracking reference: <strong className="break-all">{order.trackingNumber}</strong></p>
+                                    {order.trackingUrl && (
+                                      <a
+                                        href={order.trackingUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex pt-1 font-bold text-blue-800 underline"
+                                      >
+                                        Open carrier tracking page
+                                      </a>
+                                    )}
+                                    {(order.parcelWeightKg || order.parcelLengthCm || order.parcelWidthCm || order.parcelHeightCm) && (
+                                      <p>
+                                        Parcel: {order.parcelWeightKg} kg · {order.parcelLengthCm} × {order.parcelWidthCm} × {order.parcelHeightCm} cm
+                                      </p>
+                                    )}
+                                    {order.proofOfDeliveryImage && (
+                                      <div className="mt-3 border-t border-blue-200 pt-3">
+                                        <p className="mb-2 font-bold">Seller proof of delivery</p>
+                                        {(order.deliveryRiderName || order.deliveryRiderPhone) && (
+                                          <div className="mb-2 space-y-1">
+                                            {order.deliveryRiderName && <p>Rider: <strong>{order.deliveryRiderName}</strong></p>}
+                                            {order.deliveryRiderPhone && <p>Rider phone: <strong>{order.deliveryRiderPhone}</strong></p>}
+                                          </div>
+                                        )}
+                                        <img
+                                          src={order.proofOfDeliveryImage}
+                                          alt={`Proof of delivery for ${order.title}`}
+                                          className="max-h-48 w-full rounded-lg border border-blue-100 bg-white object-contain"
+                                        />
+                                        {order.completedAt && (
+                                          <p className="mt-1 text-[11px] text-blue-800">
+                                            Completed {new Date(order.completedAt).toLocaleString()}
+                                          </p>
+                                        )}
+                                      </div>
+                                    )}
+                                    <p className="pt-1 text-blue-800">Use this reference with the carrier directly. Live location tracking is not available in this app.</p>
+                                  </div>
+                                ) : (
+                                  <p className="mt-1 text-blue-800">
+                                    The seller has not entered the carrier and tracking reference yet. This app does not display live parcel location.
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                            {order.deliveryMethod === 'campus_pickup' && (
+                              <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/70 p-3 text-xs text-blue-950">
+                                <p className="font-bold">Campus pickup · CAFA Main Campus Pickup Desk</p>
+                                <p className="mt-1 text-blue-800">
+                                  {order.status === 'Ready for pickup'
+                                    ? 'Your artwork is ready. Coordinate your pickup with the seller.'
+                                    : 'The seller will update this order when it is ready for pickup.'}
+                                </p>
+                              </div>
+                            )}
                           </div>
                         </div>
 
@@ -488,7 +563,7 @@ export const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
                       Default
                     </span>
                     <button
-                      onClick={() => setShowEditAddressModal(true)}
+                      onClick={openEditAddress}
                       className="text-xs font-bold text-red-600 hover:text-red-700 cursor-pointer"
                     >
                       Edit address
@@ -504,7 +579,7 @@ export const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
 
                   <div className="pt-2">
                     <button
-                      onClick={() => setShowEditAddressModal(true)}
+                      onClick={openEditAddress}
                       className="px-5 py-2 rounded-full border border-neutral-800 text-slate-900 text-xs font-bold hover:bg-neutral-100 flex items-center gap-1.5 transition-colors cursor-pointer"
                     >
                       <MapPin className="w-3.5 h-3.5" />
@@ -909,8 +984,8 @@ export const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
                 <label className="font-bold text-slate-700 block mb-1">Full Name</label>
                 <input
                   type="text"
-                  value={addressData.name}
-                  onChange={(e) => setAddressData({ ...addressData, name: e.target.value })}
+                  value={addressDraft.name}
+                  onChange={(e) => setAddressDraft({ ...addressDraft, name: e.target.value })}
                   className="w-full p-2.5 rounded-xl border border-neutral-200"
                 />
               </div>
@@ -918,8 +993,8 @@ export const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
                 <label className="font-bold text-slate-700 block mb-1">Address Line</label>
                 <input
                   type="text"
-                  value={addressData.line1}
-                  onChange={(e) => setAddressData({ ...addressData, line1: e.target.value })}
+                  value={addressDraft.line1}
+                  onChange={(e) => setAddressDraft({ ...addressDraft, line1: e.target.value })}
                   className="w-full p-2.5 rounded-xl border border-neutral-200"
                 />
               </div>
@@ -927,8 +1002,8 @@ export const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
                 <label className="font-bold text-slate-700 block mb-1">City & Postal</label>
                 <input
                   type="text"
-                  value={addressData.city}
-                  onChange={(e) => setAddressData({ ...addressData, city: e.target.value })}
+                  value={addressDraft.city}
+                  onChange={(e) => setAddressDraft({ ...addressDraft, city: e.target.value })}
                   className="w-full p-2.5 rounded-xl border border-neutral-200"
                 />
               </div>
@@ -936,8 +1011,8 @@ export const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
                 <label className="font-bold text-slate-700 block mb-1">Phone Number</label>
                 <input
                   type="text"
-                  value={addressData.phone}
-                  onChange={(e) => setAddressData({ ...addressData, phone: e.target.value })}
+                  value={addressDraft.phone}
+                  onChange={(e) => setAddressDraft({ ...addressDraft, phone: e.target.value })}
                   className="w-full p-2.5 rounded-xl border border-neutral-200"
                 />
               </div>
@@ -951,8 +1026,8 @@ export const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
               </button>
               <button
                 onClick={() => {
+                  onUpdateAddress(addressDraft);
                   setShowEditAddressModal(false);
-                  onShowToast('Address updated', 'Your default shipping address was saved.', 'success');
                 }}
                 className="px-5 py-2 rounded-full bg-red-600 text-white text-xs font-bold hover:bg-red-700 cursor-pointer"
               >
@@ -973,7 +1048,7 @@ export const BuyerProfileView: React.FC<BuyerProfileViewProps> = ({
                 <label className="font-bold text-slate-700 block mb-1">Display Name</label>
                 <input
                   type="text"
-                  defaultValue="Ana Reyes"
+                  defaultValue={userName}
                   className="w-full p-2.5 rounded-xl border border-neutral-200"
                 />
               </div>

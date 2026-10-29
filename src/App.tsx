@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import { LocalAuthSession, updateLocalBuyerAddress } from './auth/localAuth';
 import {
   ViewMode,
   MarketplaceTab,
@@ -24,11 +25,15 @@ import {
   SellerOrderTransaction,
   VoucherItem,
   SellerAnnouncement,
+  CheckoutDetails,
+  ManualFulfillmentStatus,
+  ShipmentDetails,
+  DeliveryCompletionDetails,
+  BuyerAddress,
 } from './types';
 import {
   initialArtworks,
   initialRankedArtists,
-  initialOrders,
   initialConversations,
   initialAdmins,
   initialStudents,
@@ -36,15 +41,14 @@ import {
   initialStrikes,
   initialAuditLogs,
   initialArtistsDirectory,
-  initialSellerTransactions,
   initialVouchers,
   initialSellerAnnouncements,
 } from './data/mockData';
+import { loadOrderData, saveOrderData } from './data/orderStorage';
 
 // Public Components
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
-import { CartDrawer } from './components/CartDrawer';
 import { ArtworkDetailModal } from './components/ArtworkDetailModal';
 import { ToastContainer, ToastMessage } from './components/Toast';
 
@@ -63,12 +67,15 @@ import { GalleryView } from './views/GalleryView';
 import { ArtistProfileView } from './views/ArtistProfileView';
 import { ArtistsDirectoryView } from './views/ArtistsDirectoryView';
 import { HeartsView } from './views/HeartsView';
+import { CartCheckoutView } from './views/CartCheckoutView';
+import { LocalAuthView } from './views/LocalAuthView';
 
 // Buyer Views
 import { BuyerProfileView } from './views/BuyerProfileView';
 
 // Seller Views
 import { SellerOrderView } from './views/seller/SellerOrderView';
+import { SellerFulfillmentView } from './views/seller/SellerFulfillmentView';
 import { SellerDashboardView } from './views/seller/SellerDashboardView';
 import { SellerArtVerificationView } from './views/seller/SellerArtVerificationView';
 import { SellerMarketingView } from './views/seller/SellerMarketingView';
@@ -78,10 +85,14 @@ import { SellerGalleryView } from './views/seller/SellerGalleryView';
 import { SellerVoucherGeneratorView } from './views/seller/SellerVoucherGeneratorView';
 import { SellerLogsView } from './views/seller/SellerLogsView';
 import { SellerStockView } from './views/seller/SellerStockView';
+import { SellerCertificateView } from './views/seller/SellerCertificateView';
+import { ArtworkAuthenticityView } from './views/ArtworkAuthenticityView';
+import { CertificateVerificationView } from './views/CertificateVerificationView';
 
 // Admin Views
 import { AdminDashboardView } from './views/admin/AdminDashboardView';
 import { AdminSalesView } from './views/admin/AdminSalesView';
+import { AdminBankAccountView } from './views/admin/AdminBankAccountView';
 import { AdminArtVerificationView } from './views/admin/AdminArtVerificationView';
 import { AdminUsersAdminsView } from './views/admin/AdminUsersAdminsView';
 import { AdminUsersStudentsView } from './views/admin/AdminUsersStudentsView';
@@ -91,16 +102,27 @@ import { AdminAuditLogsView } from './views/admin/AdminAuditLogsView';
 
 export default function App() {
   // Navigation & View Mode State
+  const [authSession, setAuthSession] = useState<LocalAuthSession | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('marketplace');
   const [marketplaceTab, setMarketplaceTab] = useState<MarketplaceTab>('home');
   const [buyerTab, setBuyerTab] = useState<BuyerTab>('orders');
+  const [buyerAddress, setBuyerAddress] = useState<BuyerAddress>({
+    id: 'address-home',
+    label: 'Home',
+    name: 'Ana R.',
+    line1: 'Unit 402, J. P. Rizal St., Brgy. Diliman',
+    city: 'Quezon City, Metro Manila 1101',
+    phone: '+63 917 842 4821',
+    isDefault: true,
+  });
   const [adminTab, setAdminTab] = useState<AdminTab>('dashboard');
   const [sellerTab, setSellerTab] = useState<SellerTab>('order');
 
   // Core Data States
   const [artworks, setArtworks] = useState<Artwork[]>(initialArtworks);
   const [rankedArtists, setRankedArtists] = useState<RankedArtist[]>(initialRankedArtists);
-  const [orders, setOrders] = useState<OrderItem[]>(initialOrders);
+  const [orderData, setOrderData] = useState(loadOrderData);
+  const { orders, sellerTransactions } = orderData;
   const [conversations, setConversations] = useState<Conversation[]>(initialConversations);
   const [admins, setAdmins] = useState<AdminUser[]>(initialAdmins);
   const [students, setStudents] = useState<StudentUser[]>(initialStudents);
@@ -111,12 +133,14 @@ export default function App() {
   const [selectedArtistProfile, setSelectedArtistProfile] = useState<ArtistDirectoryItem | null>(null);
   const [directoryArtType, setDirectoryArtType] = useState<string>('All');
   const [isAllCategoriesOpen, setIsAllCategoriesOpen] = useState<boolean>(false);
-
   // Seller Portal State
-  const [sellerTransactions, setSellerTransactions] = useState<SellerOrderTransaction[]>(initialSellerTransactions);
   const [vouchers, setVouchers] = useState<VoucherItem[]>(initialVouchers);
   const [announcements, setAnnouncements] = useState<SellerAnnouncement[]>(initialSellerAnnouncements);
   const [sellerSearch, setSellerSearch] = useState('');
+
+  useEffect(() => {
+    saveOrderData(orderData);
+  }, [orderData]);
 
   const handleAddAnnouncement = (newAnn: SellerAnnouncement) => {
     setAnnouncements((prev) => [newAnn, ...prev]);
@@ -133,13 +157,23 @@ export default function App() {
     );
   };
 
+  const handleUpdateArtwork = (updatedArtwork: Artwork) => {
+    setArtworks((prev) =>
+      prev.map((artwork) => (artwork.id === updatedArtwork.id ? updatedArtwork : artwork))
+    );
+  };
+
+  const handleUpdateArtistProfile = (updatedArtist: ArtistDirectoryItem) => {
+    setArtistsDirectory((prev) =>
+      prev.map((artist) => (artist.id === updatedArtist.id ? updatedArtist : artist))
+    );
+  };
+
   // Cart State (Initialized with 2 items to match the badge 2 in the screenshots!)
   const [cartItems, setCartItems] = useState<CartItem[]>([
     { artwork: initialArtworks[6], quantity: 1 }, // Golden Hour Reflections
     { artwork: initialArtworks[3], quantity: 1 }, // Clay & Void Study
   ]);
-  const [isCartOpen, setIsCartOpen] = useState(false);
-
   // Modals & Details
   const [selectedArtworkModal, setSelectedArtworkModal] = useState<Artwork | null>(null);
 
@@ -325,35 +359,147 @@ export default function App() {
   };
 
   // Checkout
-  const handleCheckout = () => {
-    setIsCartOpen(false);
-    // Add new order to orders list
-    const newOrder: OrderItem = {
-      id: `order-${Date.now()}`,
-      orderNumber: `RN-${Math.floor(10000000 + Math.random() * 90000000)}`,
-      title: cartItems[0]?.artwork.title || 'CAFA Fine Art Acquisition',
-      artist: cartItems[0]?.artwork.artist || 'CAFA Student Artist',
-      medium: cartItems[0]?.artwork.category || 'Original Artwork',
-      status: 'In transit',
-      dateInfo: 'Est. 3-5 business days',
-      price: cartItems.reduce((acc, c) => acc + c.artwork.price * c.quantity, 0),
-      image: cartItems[0]?.artwork.image || '',
-    };
-    setOrders((prev) => [newOrder, ...prev]);
+  const handleCheckout = (details: CheckoutDetails) => {
+    if (cartItems.length === 0) return;
+
+    const timestamp = Date.now();
+    const orderNumber = `RN-${timestamp.toString().slice(-8)}`;
+    const orderIds = cartItems.map((_, index) => `order-${timestamp}-${index}`);
+    const deliveryAddress = details.deliveryMethod === 'door_to_door'
+      ? `${details.recipientName} · ${details.phone} · ${details.deliveryAddress}`
+      : `${details.recipientName} · ${details.phone} · CAFA Main Campus Pickup Desk`;
+    const newOrders: OrderItem[] = cartItems.map(({ artwork, quantity }, index) => ({
+      id: orderIds[index],
+      orderNumber,
+      title: artwork.title,
+      artist: artwork.artist,
+      buyerEmail: authSession?.email,
+      medium: artwork.mediumsUsed?.split(',')[0] || artwork.category,
+      status: 'Processing',
+      dateInfo: 'Awaiting seller confirmation',
+      price: artwork.price * quantity,
+      image: artwork.image,
+      deliveryMethod: details.deliveryMethod,
+      paymentMethod: details.paymentMethod,
+      deliveryAddress,
+    }));
+    const newTransactions: SellerOrderTransaction[] = cartItems.map(({ artwork, quantity }, index) => ({
+      id: orderIds[index],
+      orderNumber,
+      artwork: artwork.title,
+      artist: artwork.artist,
+      buyer: details.recipientName,
+      buyerEmail: authSession?.email,
+      date: new Date(timestamp).toLocaleDateString(),
+      grossAmount: artwork.price * quantity,
+      platformTakeRate: 0,
+      platformTakeAmount: 0,
+      netStudentPayout: artwork.price * quantity,
+      status: 'Pending',
+      escrowStatus: 'Awaiting payment',
+      fulfillmentStatus: 'Processing',
+      deliveryMethod: details.deliveryMethod,
+      paymentMethod: details.paymentMethod,
+      deliveryAddress,
+    }));
+
+    setOrderData((previous) => ({
+      orders: [...newOrders, ...previous.orders],
+      sellerTransactions: [...newTransactions, ...previous.sellerTransactions],
+    }));
     setCartItems([]);
     showToast(
-      'Acquisition Confirmed!',
-      'Your order has been recorded. 100% funds escrowed to student artist.',
+      'Order request received',
+      'The seller will confirm any delivery fee and coordinate payment and delivery updates with you.',
       'success'
     );
     setViewMode('buyer_profile');
     setBuyerTab('orders');
   };
 
+  const handleUpdateShipping = (
+    id: string,
+    fulfillmentStatus: ManualFulfillmentStatus,
+    shipment?: ShipmentDetails
+  ) => {
+    setOrderData((previous) => ({
+      sellerTransactions: previous.sellerTransactions.map((transaction) => (
+        transaction.id === id
+          ? {
+              ...transaction,
+              fulfillmentStatus,
+              status: fulfillmentStatus === 'Shipped' ? 'Shipped' : 'Pending',
+              ...(shipment ?? {}),
+            }
+          : transaction
+      )),
+      orders: previous.orders.map((order) => (
+        order.id === id
+          ? {
+              ...order,
+              status: fulfillmentStatus === 'Shipped' ? 'In transit' : 'Ready for pickup',
+              ...(shipment ?? {}),
+              dateInfo: fulfillmentStatus === 'Shipped' ? 'Shipped by seller' : 'Ready for campus pickup',
+            }
+          : order
+      )),
+    }));
+    showToast(
+      fulfillmentStatus === 'Shipped' ? 'Shipping details saved' : 'Order ready for pickup',
+      fulfillmentStatus === 'Shipped'
+        ? 'The buyer can now see the parcel dimensions, weight, and carrier tracking link.'
+        : 'The buyer can now see that their order is ready at the campus pickup desk.',
+      'success'
+    );
+  };
+
+  const handleMarkOnTheWay = (id: string, shipment: ShipmentDetails) => {
+    setOrderData((previous) => ({
+      sellerTransactions: previous.sellerTransactions.map((transaction) => (
+        transaction.id === id
+          ? { ...transaction, ...shipment, fulfillmentStatus: 'On the way' }
+          : transaction
+      )),
+      orders: previous.orders.map((order) => (
+        order.id === id ? { ...order, ...shipment } : order
+      )),
+    }));
+    showToast('Order is on the way', 'Tracking and rider details have been saved.', 'success');
+  };
+
+  const handleCompleteDelivery = (id: string, details: DeliveryCompletionDetails) => {
+    const completedAt = new Date().toISOString();
+    setOrderData((previous) => ({
+      sellerTransactions: previous.sellerTransactions.map((transaction) => (
+        transaction.id === id
+          ? { ...transaction, status: 'Completed', fulfillmentStatus: 'Delivered', ...details, completedAt }
+          : transaction
+      )),
+      orders: previous.orders.map((order) => (
+        order.id === id
+          ? { ...order, status: 'Completed', ...details, completedAt, dateInfo: 'Delivered and confirmed by seller' }
+          : order
+      )),
+    }));
+    showToast('Order completed', 'The delivery proof has been saved and the buyer can view it in their order details.', 'success');
+  };
+
+  const handleUpdateEscrowStatus = (
+    id: string,
+    escrowStatus: NonNullable<SellerOrderTransaction['escrowStatus']>
+  ) => {
+    setOrderData((previous) => ({
+      ...previous,
+      sellerTransactions: previous.sellerTransactions.map((transaction) => (
+        transaction.id === id ? { ...transaction, escrowStatus } : transaction
+      )),
+    }));
+  };
+
   // Verify Artwork (Admin)
   const handleVerifyArtwork = (id: string) => {
     setArtworks((prev) =>
-      prev.map((art) => (art.id === id ? { ...art, status: 'approved' } : art))
+      prev.map((art) => (art.id === id ? { ...art, status: 'approved', isActive: false } : art))
     );
     // Add audit log
     const newLog: AuditLogItem = {
@@ -366,6 +512,30 @@ export default function App() {
       information: `Artwork ${id} verified and approved for catalog`,
     };
     setAuditLogs((prev) => [newLog, ...prev]);
+  };
+
+  const handleSubmitSellerArtwork = (newArtwork: Partial<Artwork>) => {
+    const artwork: Artwork = {
+      id: `art-${Date.now()}`,
+      title: newArtwork.title ?? '',
+      artist: authSession?.name ?? '',
+      image: newArtwork.image ?? '',
+      price: newArtwork.price ?? 0,
+      size: newArtwork.size ?? '',
+      status: 'pending',
+      category: newArtwork.category ?? 'painting',
+      description: newArtwork.description,
+      mediumsUsed: newArtwork.mediumsUsed,
+      isActive: false,
+    };
+    setArtworks((previous) => [artwork, ...previous]);
+  };
+
+  const handleActivateSellerArtwork = (id: string) => {
+    setArtworks((previous) =>
+      previous.map((artwork) => (artwork.id === id ? { ...artwork, isActive: true } : artwork))
+    );
+    showToast('Product is active', 'The approved artwork has been added to your active product list.', 'success');
   };
 
   // Reject Artwork (Admin)
@@ -471,18 +641,86 @@ export default function App() {
   const cartCount = cartItems.reduce((acc, c) => acc + c.quantity, 0);
   const pendingArtsCount = artworks.filter((a) => a.status === 'pending').length;
   const pendingStudentsCount = students.filter((s) => s.status === 'Pending').length;
+  const verificationParams = new URLSearchParams(window.location.search);
+  const verificationArtworkId = verificationParams.get('verify');
+
+  const handleAuthenticated = (session: LocalAuthSession) => {
+    setAuthSession(session);
+    setViewMode(
+      session.role === 'seller'
+        ? 'seller_portal'
+        : session.role === 'admin'
+        ? 'admin_portal'
+        : 'marketplace'
+    );
+    if (session.role === 'buyer') {
+      setBuyerAddress(session.address
+        ? { ...session.address }
+        : {
+            id: 'address-home',
+            label: 'Home',
+            name: session.name,
+            line1: '',
+            city: '',
+            phone: '',
+            isDefault: true,
+          });
+      setMarketplaceTab('home');
+    }
+  };
+
+  const handleUpdateBuyerAddress = (address: BuyerAddress) => {
+    if (!authSession || authSession.role !== 'buyer') {
+      showToast('Address not saved', 'Only a signed-in buyer can update a saved address.', 'error');
+      return;
+    }
+
+    try {
+      updateLocalBuyerAddress(authSession.email, address);
+      setBuyerAddress(address);
+      showToast('Address saved', 'Your saved delivery address is ready for checkout.', 'success');
+    } catch (error) {
+      showToast(
+        'Address not saved',
+        error instanceof Error ? error.message : 'Unable to save the address in this browser.',
+        'error'
+      );
+    }
+  };
+
+  const handleSignOut = () => {
+    setAuthSession(null);
+    setViewMode('marketplace');
+    setMarketplaceTab('home');
+    setBuyerTab('orders');
+    setSellerTab('order');
+    setAdminTab('dashboard');
+  };
+
+  if (verificationArtworkId !== null) {
+    return (
+      <CertificateVerificationView
+        artwork={artworks.find((artwork) => artwork.id === verificationArtworkId)}
+        certificateNumber={verificationParams.get('certificate') ?? ''}
+      />
+    );
+  }
+
+  if (!authSession) {
+    return <LocalAuthView onAuthenticated={handleAuthenticated} />;
+  }
 
   return (
     <div className="min-h-screen bg-[#FAF9F6]/40 flex flex-col antialiased selection:bg-red-500 selection:text-white">
       {/* 1. If in ADMIN PORTAL View */}
       {viewMode === 'admin_portal' ? (
-        <div className="flex min-h-screen flex-col bg-[#F8FAFC]">
+        <div className="admin-panel flex min-h-screen flex-col bg-[#F8FAFC]">
           {/* Admin Header */}
           <AdminHeader
             searchQuery={adminSearch}
             onSearchChange={setAdminSearch}
-            currentViewMode={viewMode}
-            onChangeViewMode={setViewMode}
+            userName={authSession.name}
+            onSignOut={handleSignOut}
           />
 
           <div className="flex flex-1">
@@ -519,12 +757,28 @@ export default function App() {
                 />
               )}
 
+              {adminTab === 'bank_account' && (
+                <AdminBankAccountView
+                  transactions={sellerTransactions}
+                  onUpdateEscrowStatus={handleUpdateEscrowStatus}
+                  onShowToast={showToast}
+                />
+              )}
+
               {adminTab === 'art_verification' && (
                 <AdminArtVerificationView
                   artworks={artworks}
                   onVerifyArtwork={handleVerifyArtwork}
                   onRejectArtwork={handleRejectArtwork}
                   onShowToast={showToast}
+                />
+              )}
+
+              {adminTab === 'authenticity_check' && (
+                <ArtworkAuthenticityView
+                  artworks={artworks}
+                  orders={orders}
+                  transactions={sellerTransactions}
                 />
               )}
 
@@ -591,13 +845,13 @@ export default function App() {
         </div>
       ) : viewMode === 'seller_portal' ? (
         /* 2. SELLER PORTAL (STUDENT ARTIST) - Matches Seller Navigation bar.png design */
-        <div className="flex flex-col min-h-screen bg-[#F8FAFC]">
+        <div className="seller-panel flex flex-col min-h-screen bg-[#F8FAFC]">
           {/* Seller Header */}
           <SellerHeader
             searchQuery={sellerSearch}
             onSearchChange={setSellerSearch}
-            currentViewMode={viewMode}
-            onChangeViewMode={setViewMode}
+            userName={authSession.name}
+            onSignOut={handleSignOut}
             onOpenSettings={() => setSellerTab('finance')}
           />
 
@@ -617,6 +871,16 @@ export default function App() {
                   transactions={sellerTransactions}
                   onShowToast={showToast}
                   onNavigateTab={setSellerTab}
+                  onCompleteDelivery={handleCompleteDelivery}
+                  onMarkOnTheWay={handleMarkOnTheWay}
+                />
+              )}
+
+              {sellerTab === 'shipping_fulfillment' && (
+                <SellerFulfillmentView
+                  transactions={sellerTransactions}
+                  onBackToOrders={() => setSellerTab('order')}
+                  onUpdateShipping={handleUpdateShipping}
                 />
               )}
 
@@ -634,7 +898,10 @@ export default function App() {
               {sellerTab === 'art_verification' && (
                 <SellerArtVerificationView
                   artworks={artworks}
+                  sellerName={authSession.name}
                   onShowToast={showToast}
+                  onSubmitArtwork={handleSubmitSellerArtwork}
+                  onActivateArtwork={handleActivateSellerArtwork}
                 />
               )}
 
@@ -663,6 +930,14 @@ export default function App() {
               {sellerTab === 'artist_gallery' && (
                 <SellerGalleryView
                   artworks={artworks}
+                  artist={
+                    artistsDirectory.find(
+                      (artist) => artist.name.toLowerCase() === authSession?.name.toLowerCase()
+                    ) ?? artistsDirectory[0]
+                  }
+                  sellerName={authSession?.name ?? ''}
+                  onUpdateArtist={handleUpdateArtistProfile}
+                  onUpdateArtwork={handleUpdateArtwork}
                   onSelectArtwork={(art) => setSelectedArtworkModal(art)}
                   onShowToast={showToast}
                   onNavigateToVerification={() => setSellerTab('art_verification')}
@@ -694,6 +969,22 @@ export default function App() {
                 />
               )}
 
+              {sellerTab === 'certificate' && (
+                <SellerCertificateView
+                  artworks={artworks}
+                  artistName={authSession.name}
+                  onShowToast={showToast}
+                />
+              )}
+
+              {sellerTab === 'authenticity_check' && (
+                <ArtworkAuthenticityView
+                  artworks={artworks}
+                  orders={orders}
+                  transactions={sellerTransactions}
+                />
+              )}
+
               {sellerTab === 'logs' && (
                 <SellerLogsView
                   onShowToast={showToast}
@@ -711,12 +1002,9 @@ export default function App() {
             onSelectTab={handleSelectMarketplaceTab}
             favoritesCount={favoritesCount}
             cartCount={cartCount}
-            onOpenCart={() => setIsCartOpen(true)}
-            currentViewMode={viewMode}
-            onChangeViewMode={(mode) => {
-              setSelectedArtistProfile(null);
-              setViewMode(mode);
-            }}
+            onOpenCart={() => handleSelectMarketplaceTab('cart')}
+            isBuyerProfile={viewMode === 'buyer_profile'}
+            userName={authSession.name}
             searchQuery={globalSearch}
             onSearchChange={setGlobalSearch}
             isAllCategoriesOpen={isAllCategoriesOpen}
@@ -728,11 +1016,7 @@ export default function App() {
               setViewMode('buyer_profile');
               setBuyerTab(tab);
             }}
-            onSignOut={() => {
-              setViewMode('marketplace');
-              setMarketplaceTab('home');
-              showToast('Signed Out', 'You have safely signed out of Ana Reyes profile.', 'info');
-            }}
+            onSignOut={handleSignOut}
           />
 
           {/* Body Content */}
@@ -741,18 +1025,21 @@ export default function App() {
               <BuyerProfileView
                 currentTab={buyerTab}
                 onSelectTab={setBuyerTab}
-                orders={orders}
+                orders={orders.filter((order) => (
+                  !order.buyerEmail ||
+                  (authSession?.role === 'buyer' &&
+                    order.buyerEmail.toLowerCase() === authSession.email.toLowerCase())
+                ))}
+                userName={authSession.name}
+                addressData={buyerAddress}
+                onUpdateAddress={handleUpdateBuyerAddress}
                 conversations={conversations}
                 onSendMessage={handleSendChatMessage}
                 onNavigateToHearts={() => {
                   setViewMode('marketplace');
                   setMarketplaceTab('hearts');
                 }}
-                onSignOut={() => {
-                  setViewMode('marketplace');
-                  setMarketplaceTab('home');
-                  showToast('Signed Out', 'You have safely signed out of Ana Reyes profile.', 'info');
-                }}
+                onSignOut={handleSignOut}
                 onShowToast={showToast}
               />
             ) : (
@@ -786,6 +1073,16 @@ export default function App() {
                       setBuyerTab(tab);
                     }}
                     onNavigateToArtists={handleNavigateToArtistsDirectory}
+                  />
+                )}
+
+                {marketplaceTab === 'cart' && (
+                  <CartCheckoutView
+                    items={cartItems}
+                    savedAddresses={[buyerAddress]}
+                    onRemoveItem={handleRemoveFromCart}
+                    onContinueShopping={() => handleSelectMarketplaceTab('shop')}
+                    onPlaceOrder={handleCheckout}
                   />
                 )}
 
@@ -843,15 +1140,6 @@ export default function App() {
           <Footer variant={viewMode === 'buyer_profile' ? 'buyer' : 'cafa'} />
         </div>
       )}
-
-      {/* Cart Drawer */}
-      <CartDrawer
-        isOpen={isCartOpen}
-        onClose={() => setIsCartOpen(false)}
-        items={cartItems}
-        onRemoveItem={handleRemoveFromCart}
-        onCheckout={handleCheckout}
-      />
 
       {/* Artwork Detail Modal */}
       <ArtworkDetailModal

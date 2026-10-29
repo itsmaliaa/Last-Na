@@ -26,8 +26,8 @@ export const RedNexusLogo: React.FC<RedNexusLogoProps> = ({
         className={`${imageSizes[size]} h-auto object-contain drop-shadow-sm ${whiteText ? 'brightness-0 invert' : ''}`}
       />
       <span className="flex items-center gap-1 text-[15px] sm:text-[16px] md:text-[17px] font-black uppercase tracking-[0.04em] leading-none">
-        <span className={whiteText ? 'text-white' : 'text-black'}>Red</span>
-        <span className={whiteText ? 'text-white' : 'text-[#E52535]'}>Nexus</span>
+        <span className={`red-logo-text ${whiteText ? 'text-white' : 'text-black'}`}>Red</span>
+        <span className={`nexus-logo-text ${whiteText ? 'text-white' : 'text-[#E52535]'}`}>Nexus</span>
       </span>
     </div>
   );

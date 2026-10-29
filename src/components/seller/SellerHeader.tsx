@@ -1,35 +1,28 @@
 import React, { useState } from 'react';
-import { Search, Bell, Settings, Layers, LogOut, Check, ShoppingBag, Store, User, Shield } from 'lucide-react';
-import { ViewMode } from '../../types';
+import { Search, Bell, Settings, LogOut, ShoppingBag } from 'lucide-react';
 import { RedNexusLogo } from '../RedNexusLogo';
 
 interface SellerHeaderProps {
   searchQuery: string;
   onSearchChange: (q: string) => void;
-  currentViewMode: ViewMode;
-  onChangeViewMode: (mode: ViewMode) => void;
+  userName: string;
+  onSignOut: () => void;
   onOpenSettings?: () => void;
 }
 
 export const SellerHeader: React.FC<SellerHeaderProps> = ({
   searchQuery,
   onSearchChange,
-  currentViewMode,
-  onChangeViewMode,
+  userName,
+  onSignOut,
   onOpenSettings,
 }) => {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [showPortalMenu, setShowPortalMenu] = useState(false);
-
   return (
     <header className="h-18 px-6 sm:px-8 bg-white border-b border-neutral-200/80 flex items-center justify-between gap-4 sm:gap-6 sticky top-0 z-30 shadow-2xs">
       {/* Left: Red Nexus Logo */}
-      <div 
-        onClick={() => onChangeViewMode('marketplace')}
-        className="cursor-pointer shrink-0"
-        title="Go to Public Marketplace"
-      >
+      <div className="shrink-0" title="Red Nexus Seller Portal">
         <RedNexusLogo size="md" />
       </div>
 
@@ -49,75 +42,6 @@ export const SellerHeader: React.FC<SellerHeaderProps> = ({
 
       {/* Right Controls */}
       <div className="flex items-center gap-3 sm:gap-4 shrink-0">
-        {/* Switch View Portal Menu */}
-        <div className="relative">
-          <button
-            onClick={() => setShowPortalMenu(!showPortalMenu)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-neutral-100 text-neutral-700 hover:bg-neutral-200 border border-neutral-200 transition-colors cursor-pointer"
-            title="Switch portal"
-          >
-            <Layers className="w-3.5 h-3.5 text-red-600" />
-            <span className="hidden sm:inline">Portal Switcher</span>
-          </button>
-
-          {showPortalMenu && (
-            <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-neutral-200 py-2 z-50 animate-in fade-in zoom-in-95">
-              <div className="px-3 py-1.5 text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
-                Select Red Nexus View
-              </div>
-              <button
-                onClick={() => {
-                  onChangeViewMode('marketplace');
-                  setShowPortalMenu(false);
-                }}
-                className="w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-neutral-50 transition-colors text-slate-700 cursor-pointer"
-              >
-                <span className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-red-500" />
-                  Marketplace & Gallery
-                </span>
-              </button>
-              <button
-                onClick={() => {
-                  onChangeViewMode('buyer_profile');
-                  setShowPortalMenu(false);
-                }}
-                className="w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-neutral-50 transition-colors text-slate-700 cursor-pointer"
-              >
-                <span className="flex items-center gap-2">
-                  <User className="w-3.5 h-3.5 text-slate-500" />
-                  Buyer Profile (Ana Reyes)
-                </span>
-              </button>
-              <button
-                onClick={() => {
-                  onChangeViewMode('seller_portal');
-                  setShowPortalMenu(false);
-                }}
-                className="w-full text-left px-3 py-2 text-xs flex items-center justify-between bg-red-50/70 text-red-600 font-bold transition-colors cursor-pointer"
-              >
-                <span className="flex items-center gap-2">
-                  <Store className="w-3.5 h-3.5 text-red-600" />
-                  Seller Portal (Malia J)
-                </span>
-                <Check className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={() => {
-                  onChangeViewMode('admin_portal');
-                  setShowPortalMenu(false);
-                }}
-                className="w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-neutral-50 transition-colors text-slate-700 cursor-pointer"
-              >
-                <span className="flex items-center gap-2">
-                  <Shield className="w-3.5 h-3.5 text-slate-500" />
-                  Admin Management Suite
-                </span>
-              </button>
-            </div>
-          )}
-        </div>
-
         {/* Notifications Bell */}
         <div className="relative">
           <button
@@ -167,47 +91,37 @@ export const SellerHeader: React.FC<SellerHeaderProps> = ({
         {/* Vertical divider */}
         <div className="h-5 w-px bg-neutral-200" />
 
-        {/* User Capsule: Malia + dark circle J (as shown in image) */}
+        {/* Signed-in seller account */}
         <div className="relative">
           <button
             onClick={() => setShowUserDropdown(!showUserDropdown)}
             className="flex items-center gap-2.5 pl-3 pr-1.5 py-1 bg-neutral-100 hover:bg-neutral-200/80 rounded-full border border-neutral-200 transition-colors cursor-pointer"
           >
-            <span className="text-xs font-bold text-slate-800">Malia</span>
+            <span className="text-xs font-bold text-slate-800">{userName}</span>
             <div className="w-6.5 h-6.5 rounded-full bg-[#1e293b] text-white flex items-center justify-center font-bold text-xs shadow-2xs">
-              J
+              {userName.charAt(0).toUpperCase()}
             </div>
           </button>
 
           {showUserDropdown && (
             <div className="absolute right-0 mt-2 w-60 bg-white rounded-2xl shadow-xl border border-neutral-200 py-2 z-50 animate-in fade-in zoom-in-95">
               <div className="px-4 py-2.5 border-b border-neutral-100">
-                <p className="text-xs font-bold text-slate-900">Malia Santos</p>
-                <p className="text-[11px] text-neutral-500">Student Artist · BFA Painting</p>
+                <p className="text-xs font-bold text-slate-900">{userName}</p>
+                <p className="text-[11px] text-neutral-500">Signed-in seller</p>
                 <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700">
-                  Verified Seller · 0% Fee
+                  Local demo account
                 </span>
               </div>
               <div className="p-1">
                 <button
                   onClick={() => {
-                    onChangeViewMode('marketplace');
-                    setShowUserDropdown(false);
-                  }}
-                  className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-neutral-50 rounded-lg flex items-center gap-2 cursor-pointer"
-                >
-                  <Store className="w-3.5 h-3.5 text-neutral-400" />
-                  View Public Gallery Profile
-                </button>
-                <button
-                  onClick={() => {
-                    onChangeViewMode('marketplace');
+                    onSignOut();
                     setShowUserDropdown(false);
                   }}
                   className="w-full text-left px-3 py-2 text-xs text-red-600 hover:bg-red-50 rounded-lg flex items-center gap-2 cursor-pointer font-medium"
                 >
                   <LogOut className="w-3.5 h-3.5" />
-                  Exit Seller Portal
+                  Sign out
                 </button>
               </div>
             </div>

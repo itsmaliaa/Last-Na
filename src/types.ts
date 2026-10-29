@@ -7,6 +7,7 @@ export type ViewMode =
 export type MarketplaceTab = 
   | 'home' 
   | 'shop' 
+  | 'cart'
   | 'artists' 
   | 'artist_profile' 
   | 'gallery' 
@@ -17,6 +18,7 @@ export type SellerTab =
   | 'order'
   | 'shipping_fulfillment'
   | 'art_verification'
+  | 'authenticity_check'
   | 'marketing'
   | 'finance'
   | 'messages'
@@ -24,6 +26,7 @@ export type SellerTab =
   | 'voucher_generator'
   | 'discount_code'
   | 'promotions'
+  | 'certificate'
   | 'logs'
   | 'stock';
 
@@ -32,12 +35,67 @@ export interface SellerOrderTransaction {
   artwork: string;
   artist: string;
   buyer: string;
+  buyerEmail?: string;
   date: string;
   grossAmount: number;
   platformTakeRate: number; // 0%
   platformTakeAmount: number; // 0
   netStudentPayout: number;
   status: 'Completed' | 'Pending' | 'Shipped' | 'Cancelled';
+  escrowStatus?: 'Awaiting payment' | 'Held' | 'Released' | 'Refunded';
+  orderNumber?: string;
+  deliveryMethod?: 'campus_pickup' | 'door_to_door';
+  paymentMethod?: string;
+  deliveryAddress?: string;
+  fulfillmentStatus?: 'Processing' | 'Ready for pickup' | 'Shipped' | 'On the way' | 'Delivered';
+  shippingProvider?: string;
+  trackingNumber?: string;
+  trackingUrl?: string;
+  parcelWeightKg?: number;
+  parcelLengthCm?: number;
+  parcelWidthCm?: number;
+  parcelHeightCm?: number;
+  proofOfDeliveryImage?: string;
+  deliveryRiderName?: string;
+  deliveryRiderPhone?: string;
+  completedAt?: string;
+}
+
+export interface CheckoutDetails {
+  deliveryMethod: 'campus_pickup' | 'door_to_door';
+  paymentMethod: string;
+  recipientName: string;
+  phone: string;
+  deliveryAddress: string;
+  addressId?: string;
+}
+
+export type ManualFulfillmentStatus = 'Ready for pickup' | 'Shipped';
+
+export interface ShipmentDetails {
+  shippingProvider: string;
+  trackingNumber: string;
+  trackingUrl: string;
+  deliveryRiderName?: string;
+  deliveryRiderPhone?: string;
+  parcelWeightKg?: number;
+  parcelLengthCm?: number;
+  parcelWidthCm?: number;
+  parcelHeightCm?: number;
+}
+
+export interface DeliveryCompletionDetails {
+  proofOfDeliveryImage: string;
+}
+
+export interface BuyerAddress {
+  id: string;
+  label: string;
+  name: string;
+  line1: string;
+  city: string;
+  phone: string;
+  isDefault: boolean;
 }
 
 export interface VoucherItem {
@@ -99,7 +157,9 @@ export type BuyerTab =
 export type AdminTab = 
   | 'dashboard' 
   | 'sales' 
+  | 'bank_account'
   | 'art_verification' 
+  | 'authenticity_check'
   | 'users_admins' 
   | 'users_students' 
   | 'users_customers' 
@@ -121,6 +181,8 @@ export interface Artwork {
   size: string;
   genre?: string;
   status: 'pending' | 'approved' | 'rejected';
+  isActive?: boolean;
+  reviewNotes?: string;
   badge?: 'Trending' | 'Best Seller' | 'Popular' | 'For Sale' | 'Collector Pick' | 'New' | 'Featured' | 'Limited print';
   rating?: number;
   colors?: string[];
@@ -152,11 +214,26 @@ export interface OrderItem {
   orderNumber: string;
   title: string;
   artist: string;
+  buyerEmail?: string;
   medium: string;
-  status: 'In transit' | 'Return eligible' | 'Completed';
+  status: 'Processing' | 'Ready for pickup' | 'In transit' | 'Return eligible' | 'Completed';
   dateInfo: string;
   price: number;
   image: string;
+  deliveryMethod?: 'campus_pickup' | 'door_to_door';
+  paymentMethod?: string;
+  deliveryAddress?: string;
+  shippingProvider?: string;
+  trackingNumber?: string;
+  trackingUrl?: string;
+  parcelWeightKg?: number;
+  parcelLengthCm?: number;
+  parcelWidthCm?: number;
+  parcelHeightCm?: number;
+  proofOfDeliveryImage?: string;
+  deliveryRiderName?: string;
+  deliveryRiderPhone?: string;
+  completedAt?: string;
 }
 
 export interface ChatMessage {

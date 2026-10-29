@@ -11,6 +11,7 @@ import {
   Users,
   Palette,
 } from 'lucide-react';
+import { BlackCartIcon } from '../components/BlackCartIcon';
 import { Artwork, BuyerTab } from '../types';
 
 interface ShopViewProps {
@@ -33,7 +34,9 @@ export const ShopView: React.FC<ShopViewProps> = ({
   const [currentPage, setCurrentPage] = useState<number>(1);
 
   // Exact 8 artworks matching Shop.png
-  const shopItems = artworks.slice(2, 10);
+  const shopItems = artworks
+    .filter((artwork) => artwork.status === 'approved' && artwork.isActive !== false)
+    .slice(0, 8);
 
   const mapCategoryToArtType = (cat?: string): string => {
     if (!cat) return 'All';

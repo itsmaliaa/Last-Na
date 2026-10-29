@@ -1,89 +1,237 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Palette,
-  Upload,
   CheckCircle2,
   Clock,
   AlertCircle,
   PlusCircle,
   FileCheck,
   Image as ImageIcon,
-  Check,
 } from 'lucide-react';
 import { Artwork } from '../../types';
+import { ARTWORK_CATEGORIES, getArtworkCategoryLabel } from '../../utils/artworkCategories';
+
+type SubmissionStatus = 'Active' | 'Reviewing' | 'Approved' | 'Rejected' | 'Draft';
+type VerificationFilter = SubmissionStatus;
+type ArtworkCategory = Artwork['category'];
+
+interface SellerArtworkDraft {
+  id: string;
+  title: string;
+  category: ArtworkCategory;
+  medium: string;
+  dimensions: string;
+  price: string;
+  description: string;
+  image: string;
+}
+
+const VERIFICATION_FILTERS: VerificationFilter[] = [
+  'Active',
+  'Reviewing',
+  'Approved',
+  'Rejected',
+  'Draft',
+];
 
 interface SellerArtVerificationViewProps {
   artworks: Artwork[];
+  sellerName: string;
   onShowToast: (title: string, msg?: string, type?: 'success' | 'info' | 'error') => void;
   onSubmitArtwork?: (newArt: Partial<Artwork>) => void;
+  onActivateArtwork?: (artworkId: string) => void;
 }
 
 export const SellerArtVerificationView: React.FC<SellerArtVerificationViewProps> = ({
   artworks,
+  sellerName,
   onShowToast,
   onSubmitArtwork,
+  onActivateArtwork,
 }) => {
   const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [drafts, setDrafts] = useState<SellerArtworkDraft[]>([]);
+  const [draftsLoaded, setDraftsLoaded] = useState(false);
+  const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState<'painting' | 'sculpture' | 'architecture' | 'digital' | 'photography'>('painting');
+  const [category, setCategory] = useState<ArtworkCategory>('painting');
   const [medium, setMedium] = useState('Oil on Canvas');
   const [dimensions, setDimensions] = useState('80x60 cm');
   const [price, setPrice] = useState('8500');
   const [description, setDescription] = useState('');
+  const [statusFilter, setStatusFilter] = useState<VerificationFilter>('Active');
+  const [categoryFilter, setCategoryFilter] = useState<ArtworkCategory | 'all'>('all');
 
-  // Sample submission list for student artist Malia
-  const [submissions, setSubmissions] = useState([
-    {
-      id: 'sub-1',
-      title: 'Abstract Horizons',
-      medium: 'Oil on Primed Belgian Canvas',
-      date: 'Aug 25, 2026',
-      status: 'Verified',
-      reviewer: 'Prof. Chen (Dean of Painting)',
-      notes: 'Approved for official 2026 Class of 2026 exhibition. Authentic technique.',
-    },
-    {
-      id: 'sub-2',
-      title: 'Solitude in Red',
-      medium: 'Acrylic & Mixed Pigment',
-      date: 'Sep 02, 2026',
-      status: 'Pending',
-      reviewer: 'Faculty Curatorial Board',
-      notes: 'Under review for pigment safety and Academy certification.',
-    },
-    {
-      id: 'sub-3',
-      title: 'Neon Echoes Maquette',
-      medium: 'Laser-Cut Acrylic & LED',
-      date: 'Aug 10, 2026',
-      status: 'Needs Revision',
-      reviewer: 'Sculpture Dept. Committee',
-      notes: 'Please attach detailed electrical certificate for embedded lighting.',
-    },
-  ]);
+  const sellerArtworks = artworks.filter(
+    (artwork) => artwork.artist.toLowerCase() === sellerName.toLowerCase()
+  );
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const storageKey = `red-nexus-artwork-drafts-${sellerName.toLowerCase()}`;
+  useEffect(() => {
+    try {
+      const savedDrafts = window.localStorage.getItem(storageKey);
+      if (savedDrafts) {
+        const parsed: unknown = JSON.parse(savedDrafts);
+        if (!Array.isArray(parsed)) throw new Error('Saved product drafts are unreadable.');
+        const savedDraftItems = parsed.filter((draft): draft is SellerArtworkDraft => (
+          typeof draft === 'object' &&
+          draft !== null &&
+          'id' in draft &&
+          typeof draft.id === 'string' &&
+          'title' in draft &&
+          typeof draft.title === 'string'
+        ));
+        setDrafts(savedDraftItems.length > 0 ? savedDraftItems : [{
+          id: 'sample-draft-evening-light',
+          title: 'Sample Draft: Evening Light Study',
+          category: 'painting',
+          medium: 'Oil on Canvas',
+          dimensions: '50x70 cm',
+          price: '6800',
+          description: 'Sample saved draft. Edit the details and submit it for admin approval when ready.',
+          image: sellerArtworks[0]?.image ?? artworks[0]?.image ?? '',
+        }]);
+      } else {
+        setDrafts([{
+          id: 'sample-draft-evening-light',
+          title: 'Sample Draft: Evening Light Study',
+          category: 'painting',
+          medium: 'Oil on Canvas',
+          dimensions: '50x70 cm',
+          price: '6800',
+          description: 'Sample saved draft. Edit the details and submit it for admin approval when ready.',
+          image: sellerArtworks[0]?.image ?? artworks[0]?.image ?? '',
+        }]);
+      }
+    } catch (error) {
+      onShowToast(
+        'Drafts could not be loaded',
+        error instanceof Error ? error.message : 'Saved product drafts are unreadable.',
+        'error'
+      );
+    } finally {
+      setDraftsLoaded(true);
+    }
+  }, [storageKey]);
+
+  useEffect(() => {
+    if (!draftsLoaded) return;
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify(drafts));
+    } catch (error) {
+      onShowToast(
+        'Drafts could not be saved',
+        error instanceof Error ? error.message : 'Unable to save drafts in this browser.',
+        'error'
+      );
+    }
+  }, [drafts, draftsLoaded, storageKey]);
+
+  const filteredArtworks = sellerArtworks.filter((artwork) => {
+    const matchesStatus = statusFilter === 'Active'
+      ? artwork.status === 'approved' && artwork.isActive !== false
+      : statusFilter === 'Approved'
+        ? artwork.status === 'approved'
+        : statusFilter === 'Reviewing'
+          ? artwork.status === 'pending'
+          : statusFilter === 'Rejected'
+            ? artwork.status === 'rejected'
+            : false;
+    return matchesStatus && (categoryFilter === 'all' || artwork.category === categoryFilter);
+  });
+  const filteredDrafts = statusFilter === 'Draft'
+    ? drafts.filter((draft) => categoryFilter === 'all' || draft.category === categoryFilter)
+    : [];
+  const submissionCounts: Record<VerificationFilter, number> = {
+    Active: sellerArtworks.filter((artwork) => artwork.status === 'approved' && artwork.isActive !== false).length,
+    Approved: sellerArtworks.filter((artwork) => artwork.status === 'approved').length,
+    Reviewing: sellerArtworks.filter((artwork) => artwork.status === 'pending').length,
+    Rejected: sellerArtworks.filter((artwork) => artwork.status === 'rejected').length,
+    Draft: drafts.length,
+  };
+
+  const openDraftForm = (draft?: SellerArtworkDraft) => {
+    setEditingDraftId(draft?.id ?? null);
+    setTitle(draft?.title ?? '');
+    setCategory(draft?.category ?? 'painting');
+    setMedium(draft?.medium ?? 'Oil on Canvas');
+    setDimensions(draft?.dimensions ?? '80x60 cm');
+    setPrice(draft?.price ?? '8500');
+    setDescription(draft?.description ?? '');
+    setImageUrl(draft?.image ?? '');
+    setShowSubmitModal(true);
+  };
+
+  const [imageUrl, setImageUrl] = useState('');
+
+  const getDraftFromForm = (): SellerArtworkDraft => ({
+    id: editingDraftId ?? `draft-${Date.now()}`,
+    title: title.trim(),
+    category,
+    medium: medium.trim(),
+    dimensions: dimensions.trim(),
+    price,
+    description: description.trim(),
+    image: imageUrl.trim(),
+  });
+
+  const handleSaveDraft = () => {
     if (!title.trim()) {
-      onShowToast('Missing Title', 'Please enter artwork title.', 'error');
+      onShowToast('Product title required', 'Enter a title before saving this draft.', 'error');
+      return;
+    }
+    const draft = getDraftFromForm();
+    setDrafts((previous) => editingDraftId
+      ? previous.map((item) => item.id === editingDraftId ? draft : item)
+      : [draft, ...previous]);
+    setStatusFilter('Draft');
+    setShowSubmitModal(false);
+    onShowToast('Draft saved', `"${draft.title}" is saved for later.`, 'success');
+  };
+
+  const downloadImportTemplate = () => {
+    const csv = [
+      'title,category,medium,dimensions,price,description,image_url',
+      'Sample Artwork,painting,Oil on Canvas,50x70 cm,6800,Sample product description,https://example.com/artwork.jpg',
+    ].join('\n');
+    const link = document.createElement('a');
+    const templateUrl = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    link.href = templateUrl;
+    link.download = 'seller-product-import-template.csv';
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(templateUrl), 1000);
+    onShowToast(
+      'Import template downloaded',
+      'Category values: painting, sculpture, architecture, digital, photography, print, or mixed_media.',
+      'success'
+    );
+  };
+
+  const handleSubmit = (e?: React.FormEvent<HTMLFormElement>, draft?: SellerArtworkDraft) => {
+    e?.preventDefault();
+    const product = draft ?? getDraftFromForm();
+    const productPrice = Number(product.price);
+    if (!product.title.trim() || !product.image.trim() || !Number.isFinite(productPrice) || productPrice <= 0) {
+      onShowToast('Product details required', 'Enter a title, artwork image URL, and valid price before submitting for approval.', 'error');
       return;
     }
 
-    const newSub = {
-      id: `sub-${Date.now()}`,
-      title,
-      medium,
-      date: 'Today',
-      status: 'Pending',
-      reviewer: 'Faculty Curatorial Board',
-      notes: 'Submitted for verification. Expected review within 24-48 hours.',
-    };
-
-    setSubmissions([newSub, ...submissions]);
+    onSubmitArtwork?.({
+      title: product.title.trim(),
+      image: product.image.trim(),
+      price: productPrice,
+      category: product.category,
+      size: product.dimensions,
+      mediumsUsed: product.medium,
+      description: product.description,
+    });
+    setDrafts((previous) => previous.filter((item) => item.id !== product.id));
+    setStatusFilter('Reviewing');
     setShowSubmitModal(false);
     setTitle('');
     setDescription('');
-    onShowToast('Artwork Submitted', `"${title}" has been submitted for CAFA faculty review.`, 'success');
+    setImageUrl('');
+    if (!draft) onShowToast('Artwork Submitted', `"${product.title}" has been submitted for admin approval.`, 'success');
   };
 
   return (
@@ -103,64 +251,153 @@ export const SellerArtVerificationView: React.FC<SellerArtVerificationViewProps>
           </p>
         </div>
 
-        <button
-          onClick={() => setShowSubmitModal(true)}
-          className="px-5 py-2.5 bg-[#DC2626] hover:bg-[#B91C1C] text-white rounded-full text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer shrink-0"
-        >
-          <PlusCircle className="w-4 h-4" />
-          <span>Submit Work for Review</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={downloadImportTemplate}
+            className="rounded-full border border-neutral-200 px-4 py-2.5 text-xs font-bold text-slate-700 transition-colors hover:bg-neutral-50"
+          >
+            Download import template
+          </button>
+          <button
+            onClick={() => openDraftForm()}
+            className="px-5 py-2.5 bg-[#DC2626] hover:bg-[#B91C1C] text-white rounded-full text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer shrink-0"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>Submit Work for Review</span>
+          </button>
+        </div>
       </div>
 
       {/* Verification Status List */}
       <div className="bg-white rounded-2xl border border-neutral-200/80 shadow-2xs overflow-hidden">
         <div className="p-6 border-b border-neutral-100 flex items-center justify-between">
           <h3 className="font-bold text-sm text-slate-900">Your Submissions Queue</h3>
-          <span className="text-xs text-neutral-500">{submissions.length} submissions</span>
+          <span className="text-xs text-neutral-500">{sellerArtworks.length + drafts.length} products</span>
         </div>
 
-        <div className="divide-y divide-neutral-100">
-          {submissions.map((sub) => (
-            <div key={sub.id} className="p-6 hover:bg-neutral-50/60 transition-colors">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-bold text-sm text-slate-900">{sub.title}</h4>
-                    {sub.status === 'Verified' && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        <CheckCircle2 className="w-3 h-3" />
-                        Verified
-                      </span>
-                    )}
-                    {sub.status === 'Pending' && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                        <Clock className="w-3 h-3" />
-                        Pending Review
-                      </span>
-                    )}
-                    {sub.status === 'Needs Revision' && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                        <AlertCircle className="w-3 h-3" />
-                        Needs Revision
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-neutral-500">Medium: {sub.medium} · Submitted on {sub.date}</p>
-                </div>
+        <div className="flex gap-2 overflow-x-auto border-b border-neutral-100 px-6 py-4" role="group" aria-label="Filter products by verification status">
+          {VERIFICATION_FILTERS.map((filter) => (
+            <button
+              key={filter}
+              type="button"
+              aria-pressed={statusFilter === filter}
+              onClick={() => setStatusFilter(filter)}
+              className={`inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition-colors ${
+                statusFilter === filter
+                  ? 'bg-[#8e1b24] text-white'
+                  : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+              }`}
+            >
+              {filter}
+              <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                statusFilter === filter ? 'bg-white/20 text-white' : 'bg-white text-neutral-600'
+              }`}>
+                {submissionCounts[filter]}
+              </span>
+            </button>
+          ))}
+        </div>
 
-                <div className="text-xs sm:text-right">
-                  <p className="text-neutral-500">Reviewer: <span className="font-medium text-slate-700">{sub.reviewer}</span></p>
-                </div>
+        <div className="flex flex-col gap-2 border-b border-neutral-100 px-6 py-4 sm:flex-row sm:items-center">
+          <label htmlFor="seller-product-category" className="text-xs font-bold text-slate-700">Artwork category</label>
+          <select
+            id="seller-product-category"
+            value={categoryFilter}
+            onChange={(event) => setCategoryFilter(event.target.value as ArtworkCategory | 'all')}
+            className="rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs text-slate-700"
+          >
+            <option value="all">All categories</option>
+            {ARTWORK_CATEGORIES.map((item) => (
+              <option key={item.value} value={item.value}>{item.label}</option>
+            ))}
+          </select>
+        </div>
+
+        {filteredArtworks.length > 0 || filteredDrafts.length > 0 ? (
+          <div className="divide-y divide-neutral-100">
+          {filteredArtworks.map((artwork) => (
+            <div key={artwork.id} className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center">
+              <img src={artwork.image} alt={artwork.title} className="h-20 w-20 rounded-xl bg-neutral-100 object-cover" />
+              <div className="min-w-0 flex-1">
+                <h4 className="font-bold text-sm text-slate-900">{artwork.title}</h4>
+                <p className="mt-1 text-xs text-neutral-500">
+                  <span className="font-semibold text-slate-700">{getArtworkCategoryLabel(artwork.category)}</span>
+                  {' · '}{artwork.mediumsUsed || 'Medium not set'} · {artwork.size} · ₱{artwork.price.toLocaleString()}
+                </p>
+                <p className="mt-1 text-xs text-neutral-500">
+                  {statusFilter === 'Active'
+                    ? 'Published in your product list.'
+                    : statusFilter === 'Approved'
+                    ? artwork.isActive === false
+                      ? 'Approved by admin. Activate it to publish in your product list.'
+                      : 'Approved by admin and already posted in your active product list.'
+                    : statusFilter === 'Reviewing'
+                    ? 'Submitted and awaiting admin approval.'
+                    : 'Rejected by admin. Review the feedback before submitting again.'}
+                </p>
+                {statusFilter === 'Rejected' && artwork.reviewNotes && (
+                  <p className="mt-2 rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-xs text-rose-800">
+                    <strong>Admin feedback:</strong> {artwork.reviewNotes}
+                  </p>
+                )}
               </div>
-
-              {/* Review notes */}
-              <div className="mt-3 p-3 bg-neutral-50 rounded-xl border border-neutral-100 text-xs text-slate-700">
-                <span className="font-bold text-slate-900 mr-1.5">Faculty Feedback:</span>
-                {sub.notes}
+              {statusFilter === 'Approved' && artwork.isActive === false && (
+                <button
+                  type="button"
+                  onClick={() => onActivateArtwork?.(artwork.id)}
+                  className="rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-800"
+                >
+                  Publish to active products
+                </button>
+              )}
+            </div>
+          ))}
+          {filteredDrafts.map((draft) => (
+            <div key={draft.id} className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center">
+              {draft.image ? (
+                <img src={draft.image} alt={draft.title} className="h-20 w-20 rounded-xl bg-neutral-100 object-cover" />
+              ) : (
+                <div className="flex h-20 w-20 items-center justify-center rounded-xl bg-neutral-100 text-neutral-400">
+                  <ImageIcon className="h-6 w-6" />
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <h4 className="font-bold text-sm text-slate-900">{draft.title}</h4>
+                <p className="mt-1 text-xs text-neutral-500">
+                  <span className="font-semibold text-slate-700">{getArtworkCategoryLabel(draft.category)}</span>
+                  {' · Draft · '}{draft.medium || 'Medium not set'} · {draft.dimensions || 'Dimensions not set'}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => openDraftForm(draft)} className="rounded-xl border border-neutral-200 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-neutral-50">
+                  Edit draft
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleSubmit(undefined, draft);
+                  }}
+                  className="rounded-xl bg-[#DC2626] px-4 py-2.5 text-xs font-bold text-white hover:bg-[#B91C1C]"
+                >
+                  Submit for approval
+                </button>
+                <button type="button" onClick={() => setDrafts((previous) => previous.filter((item) => item.id !== draft.id))} className="rounded-xl border border-red-100 px-4 py-2.5 text-xs font-bold text-red-700 hover:bg-red-50">
+                  Delete
+                </button>
               </div>
             </div>
           ))}
-        </div>
+          </div>
+        ) : (
+          <div className="p-10 text-center">
+            <FileCheck className="mx-auto h-8 w-8 text-neutral-300" />
+            <p className="mt-3 text-sm font-semibold text-slate-700">No {statusFilter.toLowerCase()} products</p>
+            <p className="mt-1 text-xs text-neutral-500">
+              Products in this category will appear here when their status changes.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Submission Modal */}
@@ -195,14 +432,12 @@ export const SellerArtVerificationView: React.FC<SellerArtVerificationViewProps>
                   <label className="block font-bold text-slate-700 mb-1">Category</label>
                   <select
                     value={category}
-                    onChange={(e) => setCategory(e.target.value as any)}
+                    onChange={(e) => setCategory(e.target.value as ArtworkCategory)}
                     className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-xs focus:outline-none"
                   >
-                    <option value="painting">Painting</option>
-                    <option value="sculpture">Sculpture</option>
-                    <option value="architecture">Architecture</option>
-                    <option value="photography">Photography</option>
-                    <option value="digital">Digital Art</option>
+                    {ARTWORK_CATEGORIES.map((item) => (
+                      <option key={item.value} value={item.value}>{item.label}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -250,18 +485,32 @@ export const SellerArtVerificationView: React.FC<SellerArtVerificationViewProps>
                 />
               </div>
 
-              <div className="p-4 border-2 border-dashed border-neutral-200 rounded-2xl text-center space-y-1 bg-neutral-50/50">
-                <Upload className="w-6 h-6 text-neutral-400 mx-auto" />
-                <p className="font-semibold text-slate-700">Drop high-res artwork photos or certificate</p>
-                <p className="text-[11px] text-neutral-400">JPG, PNG up to 25MB · Color calibrated</p>
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Artwork image URL *</label>
+                <input
+                  type="url"
+                  required
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  placeholder="https://example.com/artwork.jpg"
+                  className="w-full px-3.5 py-2 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:border-red-500"
+                />
+                <p className="mt-1 text-[11px] text-neutral-500">Required to submit for approval; drafts can be saved without an image.</p>
               </div>
 
               <div className="flex gap-3 pt-2">
                 <button
+                  type="button"
+                  onClick={handleSaveDraft}
+                  className="rounded-xl border border-neutral-200 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-neutral-50"
+                >
+                  Save draft
+                </button>
+                <button
                   type="submit"
                   className="flex-1 py-2.5 bg-[#DC2626] hover:bg-[#B91C1C] text-white rounded-xl font-bold text-xs cursor-pointer shadow-xs"
                 >
-                  Confirm & Submit to Faculty
+                  Submit for admin approval
                 </button>
                 <button
                   type="button"

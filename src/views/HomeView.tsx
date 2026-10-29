@@ -51,7 +51,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [selectedMaterials, setSelectedMaterials] = useState<string[]>([]);
   const [selectedColor, setSelectedColor] = useState<string | null>('Red');
   const [priceValue, setPriceValue] = useState<number>(10000);
-
   // Style chips row matching all Categories button slide down bar.png
   const styleChips = [
     'All Style',

@@ -9,18 +9,14 @@ import {
   ChevronRight,
   ChevronDown,
   Shield,
-  Layers,
-  ArrowRight,
-  Check,
   Package,
   MapPin,
   MessageSquare,
   KeyRound,
   CreditCard,
   LogOut,
-  Store,
 } from 'lucide-react';
-import { MarketplaceTab, ViewMode, BuyerTab } from '../types';
+import { MarketplaceTab, BuyerTab } from '../types';
 
 interface NavbarProps {
   currentTab: MarketplaceTab;
@@ -28,8 +24,8 @@ interface NavbarProps {
   favoritesCount: number;
   cartCount: number;
   onOpenCart: () => void;
-  currentViewMode: ViewMode;
-  onChangeViewMode: (mode: ViewMode) => void;
+  isBuyerProfile?: boolean;
+  userName: string;
   searchQuery: string;
   onSearchChange: (query: string) => void;
   isAllCategoriesOpen?: boolean;
@@ -46,8 +42,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   favoritesCount,
   cartCount,
   onOpenCart,
-  currentViewMode,
-  onChangeViewMode,
+  isBuyerProfile = false,
+  userName,
   searchQuery,
   onSearchChange,
   isAllCategoriesOpen = false,
@@ -57,7 +53,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   onNavigateToBuyerTab,
   onSignOut,
 }) => {
-  const [showPortalMenu, setShowPortalMenu] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   return (
@@ -102,87 +97,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Actions & Utilities */}
         <div className="flex items-center gap-3 sm:gap-4 shrink-0">
-          {/* Quick Screen Switcher Dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setShowPortalMenu(!showPortalMenu)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full bg-red-50 text-red-700 hover:bg-red-100 transition-colors border border-red-200 cursor-pointer"
-              title="Switch portal view"
-            >
-              <Layers className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">Portal Switcher</span>
-              <span className="md:hidden">Views</span>
-            </button>
-
-            {showPortalMenu && (
-              <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-neutral-200 py-2 z-50 animate-in fade-in zoom-in-95">
-                <div className="px-3 py-1.5 text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
-                  Select Red Nexus View
-                </div>
-                <button
-                  onClick={() => {
-                    onChangeViewMode('marketplace');
-                    setShowPortalMenu(false);
-                  }}
-                  className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-neutral-50 transition-colors ${
-                    currentViewMode === 'marketplace' ? 'text-red-600 font-bold bg-red-50/50' : 'text-slate-700'
-                  }`}
-                >
-                  <span className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-red-500" />
-                    Marketplace & Gallery
-                  </span>
-                  {currentViewMode === 'marketplace' && <Check className="w-3.5 h-3.5" />}
-                </button>
-                <button
-                  onClick={() => {
-                    onChangeViewMode('buyer_profile');
-                    setShowPortalMenu(false);
-                  }}
-                  className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-neutral-50 transition-colors ${
-                    currentViewMode === 'buyer_profile' ? 'text-red-600 font-bold bg-red-50/50' : 'text-slate-700'
-                  }`}
-                >
-                  <span className="flex items-center gap-2">
-                    <User className="w-3.5 h-3.5 text-slate-500" />
-                    Buyer Profile (Ana Reyes)
-                  </span>
-                  {currentViewMode === 'buyer_profile' && <Check className="w-3.5 h-3.5" />}
-                </button>
-                <button
-                  onClick={() => {
-                    onChangeViewMode('seller_portal');
-                    setShowPortalMenu(false);
-                  }}
-                  className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-neutral-50 transition-colors ${
-                    currentViewMode === 'seller_portal' ? 'text-red-600 font-bold bg-red-50/50' : 'text-slate-700'
-                  }`}
-                >
-                  <span className="flex items-center gap-2">
-                    <Store className="w-3.5 h-3.5 text-red-600" />
-                    Seller Portal (Malia J - Student Artist)
-                  </span>
-                  {currentViewMode === 'seller_portal' && <Check className="w-3.5 h-3.5" />}
-                </button>
-                <button
-                  onClick={() => {
-                    onChangeViewMode('admin_portal');
-                    setShowPortalMenu(false);
-                  }}
-                  className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-neutral-50 transition-colors ${
-                    currentViewMode === 'admin_portal' ? 'text-red-600 font-bold bg-red-50/50' : 'text-slate-700'
-                  }`}
-                >
-                  <span className="flex items-center gap-2">
-                    <Shield className="w-3.5 h-3.5 text-red-600" />
-                    Admin Management Suite
-                  </span>
-                  {currentViewMode === 'admin_portal' && <Check className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-            )}
-          </div>
-
           {/* Hearts / Favorites Icon */}
           <button
             onClick={() => onSelectTab('hearts')}
@@ -203,7 +117,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setShowProfileMenu((prev) => !prev)}
               onTouchStart={() => setShowProfileMenu((prev) => !prev)}
               className={`p-2 rounded-full transition-all cursor-pointer relative ${
-                showProfileMenu || currentViewMode === 'buyer_profile'
+                showProfileMenu || isBuyerProfile
                   ? 'text-[#E52535] bg-red-50 ring-1 ring-red-200'
                   : 'text-neutral-700 hover:bg-neutral-100'
               }`}
@@ -225,13 +139,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <div className="w-10 h-10 rounded-full overflow-hidden bg-neutral-100 border border-neutral-200 shrink-0">
                   <img
                     src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80"
-                    alt="Ana Reyes"
+                    alt={userName}
                     className="w-full h-full object-cover"
                   />
                 </div>
                 <div className="min-w-0">
-                  <div className="font-extrabold text-xs text-slate-900 truncate">Ana Reyes</div>
-                  <div className="text-[11px] text-neutral-500 truncate">Customer Account</div>
+                  <div className="font-extrabold text-xs text-slate-900 truncate">{userName}</div>
+                  <div className="text-[11px] text-neutral-500 truncate">Buyer Account</div>
                 </div>
               </div>
 
@@ -410,7 +324,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               About Us
             </button>
             <button
-              onClick={() => onChangeViewMode('buyer_profile')}
+              onClick={() => onNavigateToBuyerTab?.('orders')}
               className="hover:text-slate-900 transition-colors cursor-pointer"
             >
               Help Support
