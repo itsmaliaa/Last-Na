@@ -13,7 +13,7 @@ import { Artwork } from '../../types';
 interface AdminArtVerificationViewProps {
   artworks: Artwork[];
   onVerifyArtwork: (id: string) => void;
-  onRejectArtwork: (id: string) => void;
+  onRejectArtwork: (id: string, reviewNotes: string) => void;
   onShowToast: (title: string, message?: string, type?: 'success' | 'info' | 'error') => void;
 }
 
@@ -26,6 +26,7 @@ export const AdminArtVerificationView: React.FC<AdminArtVerificationViewProps> =
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'pending' | 'rejected' | 'approved' | 'all'>('pending');
   const [selectedArtwork, setSelectedArtwork] = useState<Artwork | null>(null);
+  const [reviewNotes, setReviewNotes] = useState('');
 
   const filteredArtworks = artworks.filter((item) => {
     if (statusFilter !== 'all' && item.status !== statusFilter) return false;
@@ -46,8 +47,13 @@ export const AdminArtVerificationView: React.FC<AdminArtVerificationViewProps> =
   };
 
   const handleReject = (artwork: Artwork) => {
-    onRejectArtwork(artwork.id);
+    if (!reviewNotes.trim()) {
+      onShowToast('Feedback required', 'Add revision feedback before rejecting this artwork.', 'error');
+      return;
+    }
+    onRejectArtwork(artwork.id, reviewNotes.trim());
     setSelectedArtwork(null);
+    setReviewNotes('');
     onShowToast('Artwork Rejected', `"${artwork.title}" was rejected with feedback sent to student.`, 'error');
   };
 
@@ -71,7 +77,7 @@ export const AdminArtVerificationView: React.FC<AdminArtVerificationViewProps> =
 
         {/* Right Status Count, Filter Pills & Sort Dropdown */}
         <div className="flex flex-wrap items-center gap-4 shrink-0 text-xs">
-          <span className="text-neutral-500 font-medium">Status: 29</span>
+          <span className="text-neutral-500 font-medium">{filteredArtworks.length} artworks</span>
 
           {/* Filter Pills */}
           <div className="flex items-center gap-1 bg-neutral-100 p-1 rounded-full text-xs font-semibold">
@@ -162,7 +168,10 @@ export const AdminArtVerificationView: React.FC<AdminArtVerificationViewProps> =
 
               {/* View Details Button */}
               <button
-                onClick={() => setSelectedArtwork(item)}
+                onClick={() => {
+                  setSelectedArtwork(item);
+                  setReviewNotes(item.reviewNotes ?? '');
+                }}
                 className="w-full py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center gap-2 border border-neutral-200/80 transition-colors cursor-pointer"
               >
                 <Eye className="w-4 h-4 text-red-600" />
@@ -279,6 +288,20 @@ export const AdminArtVerificationView: React.FC<AdminArtVerificationViewProps> =
                     {selectedArtwork.description ||
                       'A sobering reflection on forestry clearance juxtaposed with untouched woodland.'}
                   </p>
+                </div>
+
+                <div>
+                  <label htmlFor="artwork-review-notes" className="text-[11px] text-neutral-500 font-medium">
+                    Revision feedback (required to reject)
+                  </label>
+                  <textarea
+                    id="artwork-review-notes"
+                    value={reviewNotes}
+                    onChange={(event) => setReviewNotes(event.target.value)}
+                    rows={3}
+                    className="mt-1 w-full resize-y rounded-xl border border-neutral-200 bg-white p-3 text-xs text-slate-700 focus:border-red-400 focus:outline-none"
+                    placeholder="Explain what the seller should revise..."
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

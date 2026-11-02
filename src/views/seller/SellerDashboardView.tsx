@@ -609,13 +609,6 @@ export const SellerDashboardView: React.FC<SellerDashboardViewProps> = ({
 
               <div className="mt-4 pt-3 border-t border-neutral-200/60 flex items-center justify-between text-xs">
                 <span className="text-[11px] text-neutral-400">Created: {ann.createdAt}</span>
-                <button
-                  onClick={() => onNavigateTab('marketing')}
-                  className="text-xs font-bold text-red-600 hover:text-red-700 hover:underline cursor-pointer flex items-center gap-1"
-                >
-                  <span>Edit in Marketing Hub</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </button>
               </div>
             </div>
           ))}

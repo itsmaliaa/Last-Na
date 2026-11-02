@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { BlackCartIcon } from '../components/BlackCartIcon';
 import { Artwork, BuyerTab } from '../types';
+import { getArtworkCategoryLabel } from '../utils/artworkCategories';
 
 interface ShopViewProps {
   artworks: Artwork[];
@@ -32,11 +33,19 @@ export const ShopView: React.FC<ShopViewProps> = ({
   onNavigateToArtists,
 }) => {
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const productsPerPage = 8;
 
-  // Exact 8 artworks matching Shop.png
-  const shopItems = artworks
-    .filter((artwork) => artwork.status === 'approved' && artwork.isActive !== false)
-    .slice(0, 8);
+  const approvedArtworks = artworks.filter(
+    (artwork) => artwork.status === 'approved' && artwork.isActive !== false
+  );
+  const processSamples = approvedArtworks.filter((artwork) => artwork.id.startsWith('art-sample-process-'));
+  const regularArtworks = approvedArtworks.filter((artwork) => !artwork.id.startsWith('art-sample-process-'));
+  const shopItems = [...regularArtworks.slice(0, 6), ...processSamples, ...regularArtworks.slice(6)];
+  const pageCount = Math.max(1, Math.ceil(shopItems.length / productsPerPage));
+  const visibleShopItems = shopItems.slice(
+    (currentPage - 1) * productsPerPage,
+    currentPage * productsPerPage
+  );
 
   const mapCategoryToArtType = (cat?: string): string => {
     if (!cat) return 'All';
@@ -169,7 +178,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
 
         {/* 2. Artwork Catalog Grid (8 items with badges and ₱ prices matching Shop.png) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {shopItems.map((item) => (
+          {visibleShopItems.map((item) => (
             <div
               key={item.id}
               className="bg-white rounded-2xl overflow-hidden border border-neutral-200/80 shadow-xs hover:shadow-lg transition-all flex flex-col group"
@@ -244,8 +253,18 @@ export const ShopView: React.FC<ShopViewProps> = ({
                     }`}
                     title={onNavigateToArtists ? `View ${item.artist} & other ${item.category} artists in directory` : undefined}
                   >
-                    {item.artist} · {item.mediumsUsed?.split(',')[0] || item.category}
+                    {item.artist} · {item.genre || getArtworkCategoryLabel(item.category)}
                   </p>
+                  {item.style && (
+                    <p className="mt-1 truncate text-[11px] text-neutral-400">{item.style}</p>
+                  )}
+                  {item.productType && item.productType !== 'pre_made' && (
+                    <span className="mt-1 inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                      {item.id.startsWith('art-sample-process-')
+                        ? `${item.productType === 'custom_made' ? 'Custom-made' : 'Digital art'} sample`
+                        : item.productType === 'custom_made' ? 'Custom-made' : 'Digital art'}
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between pt-4 mt-2 border-t border-neutral-100">
@@ -268,13 +287,14 @@ export const ShopView: React.FC<ShopViewProps> = ({
         {/* 3. Pagination Controls (Exact match to Shop.png) */}
         <div className="flex items-center justify-center gap-2 pt-6 pb-4">
           <button
-            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+            onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+            disabled={currentPage === 1}
             className="px-4 py-2 rounded-full border border-neutral-200 text-xs font-semibold text-slate-700 hover:bg-white transition-colors cursor-pointer"
           >
             Previous
           </button>
 
-          {[1, 2, 3, 4].map((page) => (
+          {Array.from({ length: pageCount }, (_, index) => index + 1).map((page) => (
             <button
               key={page}
               onClick={() => setCurrentPage(page)}
@@ -289,7 +309,8 @@ export const ShopView: React.FC<ShopViewProps> = ({
           ))}
 
           <button
-            onClick={() => setCurrentPage(Math.min(4, currentPage + 1))}
+            onClick={() => setCurrentPage((page) => Math.min(pageCount, page + 1))}
+            disabled={currentPage === pageCount}
             className="px-4 py-2 rounded-full border border-neutral-200 text-xs font-semibold text-slate-700 hover:bg-white transition-colors cursor-pointer"
           >
             Next

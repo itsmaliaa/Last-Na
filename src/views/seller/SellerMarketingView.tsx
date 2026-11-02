@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  ImagePlus,
   ShoppingBag,
   Sparkles,
   Share2,
@@ -17,19 +18,29 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { SellerAnnouncement } from '../../types';
+import { Artwork, HomePromotion, SellerAnnouncement } from '../../types';
 
 interface SellerMarketingViewProps {
+  sellerName: string;
+  artworks: Artwork[];
   announcements: SellerAnnouncement[];
+  homePromotions: HomePromotion[];
   onAddAnnouncement: (announcement: SellerAnnouncement) => void;
   onDeleteAnnouncement?: (id: string) => void;
+  onSaveHomePromotion: (promotion: HomePromotion) => void;
+  onDeleteHomePromotion: (id: string) => void;
   onShowToast: (title: string, msg?: string, type?: 'success' | 'info' | 'error') => void;
 }
 
 export const SellerMarketingView: React.FC<SellerMarketingViewProps> = ({
+  sellerName,
+  artworks,
   announcements,
+  homePromotions,
   onAddAnnouncement,
   onDeleteAnnouncement,
+  onSaveHomePromotion,
+  onDeleteHomePromotion,
   onShowToast,
 }) => {
   const [requestedSpotlight, setRequestedSpotlight] = useState(false);
@@ -42,6 +53,90 @@ export const SellerMarketingView: React.FC<SellerMarketingViewProps> = ({
   const [annDate, setAnnDate] = useState('');
   const [annPromo, setAnnPromo] = useState('');
   const [annDesc, setAnnDesc] = useState('');
+  const [homeHeadline, setHomeHeadline] = useState('');
+  const [homeDescription, setHomeDescription] = useState('');
+  const [homeImage, setHomeImage] = useState('');
+  const sellerArtworks = artworks.filter((artwork) => (
+    artwork.artist.toLowerCase() === sellerName.toLowerCase() &&
+    artwork.status === 'approved' &&
+    artwork.isActive !== false
+  ));
+  const [homeArtworkId, setHomeArtworkId] = useState('');
+  const [homePlacement, setHomePlacement] = useState<HomePromotion['placement']>('add');
+  const sellerPromotions = homePromotions.filter((promotion) => (
+    promotion.sellerName.toLowerCase() === sellerName.toLowerCase()
+  ));
+
+  const handleHomeImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      onShowToast('Invalid feature image', 'Choose a JPG, PNG, or WebP image.', 'error');
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      onShowToast('Feature image is too large', 'Choose an image smaller than 8 MB.', 'error');
+      return;
+    }
+
+    const imageUrl = URL.createObjectURL(file);
+    try {
+      const image = new Image();
+      image.src = imageUrl;
+      await new Promise<void>((resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = () => reject(new Error('The selected image could not be opened.'));
+      });
+
+      const scale = Math.min(1, 1400 / image.width, 1000 / image.height);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(image.width * scale));
+      canvas.height = Math.max(1, Math.round(image.height * scale));
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('Image processing is not available in this browser.');
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const compressedImage = canvas.toDataURL('image/jpeg', 0.68);
+      if (compressedImage.length > 450_000) {
+        throw new Error('This image is too large to save. Choose a smaller image.');
+      }
+      setHomeImage(compressedImage);
+    } catch (error) {
+      onShowToast(
+        'Feature image could not be added',
+        error instanceof Error ? error.message : 'The selected image could not be prepared.',
+        'error'
+      );
+    } finally {
+      URL.revokeObjectURL(imageUrl);
+    }
+  };
+
+  const handlePublishHomePromotion = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!homeHeadline.trim() || !homeDescription.trim() || !homeArtworkId) {
+      onShowToast('Homepage feature details required', 'Add a headline, description, and approved artwork.', 'error');
+      return;
+    }
+
+    onSaveHomePromotion({
+      id: `home-promo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      sellerName,
+      headline: homeHeadline.trim(),
+      description: homeDescription.trim(),
+      artworkId: homeArtworkId,
+      image: homeImage || undefined,
+      placement: homePlacement,
+      createdAt: new Date().toISOString(),
+    });
+    onShowToast(
+      'Homepage feature published',
+      homePlacement === 'replace'
+        ? 'Your feature now replaces the default customer homepage hero.'
+        : 'Your feature has been added to the customer homepage.',
+      'success'
+    );
+  };
 
   const handleCopyLink = () => {
     navigator.clipboard?.writeText?.(window.location.origin);
@@ -112,6 +207,126 @@ export const SellerMarketingView: React.FC<SellerMarketingViewProps> = ({
           </button>
         </div>
       </div>
+
+      <section className="space-y-5 rounded-2xl border border-neutral-200/80 bg-white p-6 shadow-2xs">
+        <div>
+          <h3 className="text-base font-extrabold text-slate-900">Customer Homepage Feature</h3>
+          <p className="mt-1 text-xs leading-relaxed text-neutral-500">
+            Publish an approved artwork and message on the customer homepage. Add it as a new feature or replace the current hero.
+          </p>
+        </div>
+
+        <form onSubmit={handlePublishHomePromotion} className="grid gap-4 md:grid-cols-2">
+          <label className="text-xs font-semibold text-neutral-700">
+            Headline
+            <input
+              value={homeHeadline}
+              onChange={(event) => setHomeHeadline(event.target.value)}
+              maxLength={100}
+              placeholder="Introduce your featured artwork"
+              className="mt-1 w-full rounded-xl border border-neutral-200 px-3 py-2.5 text-sm font-normal text-slate-900 focus:border-red-400 focus:outline-none"
+            />
+          </label>
+          <label className="text-xs font-semibold text-neutral-700">
+            Featured approved artwork
+            <select
+              value={homeArtworkId}
+              onChange={(event) => setHomeArtworkId(event.target.value)}
+              className="mt-1 w-full rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-sm font-normal text-slate-900 focus:border-red-400 focus:outline-none"
+            >
+              <option value="">Choose your artwork</option>
+              {sellerArtworks.map((artwork) => (
+                <option key={artwork.id} value={artwork.id}>{artwork.title}</option>
+              ))}
+            </select>
+          </label>
+          <label className="text-xs font-semibold text-neutral-700">
+            Description
+            <textarea
+              value={homeDescription}
+              onChange={(event) => setHomeDescription(event.target.value)}
+              maxLength={300}
+              rows={3}
+              placeholder="Tell customers about this artwork or your shop."
+              className="mt-1 w-full resize-y rounded-xl border border-neutral-200 px-3 py-2.5 text-sm font-normal text-slate-900 focus:border-red-400 focus:outline-none"
+            />
+          </label>
+          <label className="text-xs font-semibold text-neutral-700">
+            Feature image (optional)
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={(event) => void handleHomeImageChange(event)}
+              className="mt-1 block w-full rounded-xl border border-neutral-200 p-2 text-xs font-normal text-slate-700 file:mr-3 file:rounded-full file:border-0 file:bg-neutral-100 file:px-3 file:py-1.5 file:text-xs file:font-semibold"
+            />
+            <span className="mt-1 block font-normal text-neutral-500">
+              Add a JPG, PNG, or WebP image. If omitted, the selected artwork image is used.
+            </span>
+            {homeImage && (
+              <span className="mt-2 flex items-center gap-3">
+                <img src={homeImage} alt="Homepage feature preview" className="h-20 w-28 rounded-lg object-cover" />
+                <button type="button" onClick={() => setHomeImage('')} className="font-bold text-red-600 hover:text-red-800">
+                  Remove image
+                </button>
+              </span>
+            )}
+          </label>
+          <div className="space-y-3">
+            <label className="block text-xs font-semibold text-neutral-700">
+              Homepage placement
+              <select
+                value={homePlacement}
+                onChange={(event) => setHomePlacement(event.target.value as HomePromotion['placement'])}
+                className="mt-1 w-full rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-sm font-normal text-slate-900 focus:border-red-400 focus:outline-none"
+              >
+                <option value="add">Add as a featured promotion</option>
+                <option value="replace">Replace the current homepage hero</option>
+              </select>
+            </label>
+            <button
+              type="submit"
+              disabled={sellerArtworks.length === 0}
+              className="rounded-full bg-[#DC2626] px-5 py-2.5 text-xs font-bold text-white transition-colors hover:bg-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Publish Homepage Feature
+            </button>
+            {sellerArtworks.length === 0 && (
+              <p className="text-xs text-neutral-500">You need an approved, active artwork before publishing a homepage feature.</p>
+            )}
+          </div>
+        </form>
+
+        {sellerPromotions.length > 0 && (
+          <div className="space-y-2 border-t border-neutral-100 pt-4">
+            <h4 className="text-xs font-bold text-slate-800">Your published homepage features</h4>
+            {sellerPromotions.map((promotion) => (
+              <div key={promotion.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-neutral-50 p-3">
+                <div>
+                  <p className="text-sm font-bold text-slate-900">{promotion.headline}</p>
+                  <p className="mt-0.5 text-xs text-neutral-500">
+                    {promotion.placement === 'replace' ? 'Replaces homepage hero' : 'Added to homepage'} · {artworks.find((artwork) => artwork.id === promotion.artworkId)?.title || 'Artwork unavailable'}
+                  </p>
+                  <p className="mt-0.5 text-xs text-neutral-400">
+                    Published {new Date(promotion.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+                <img
+                  src={promotion.image || artworks.find((artwork) => artwork.id === promotion.artworkId)?.image}
+                  alt=""
+                  className="h-12 w-16 rounded-lg object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => onDeleteHomePromotion(promotion.id)}
+                  className="rounded-full border border-neutral-200 px-3 py-1.5 text-xs font-semibold text-red-700 transition-colors hover:bg-red-50"
+                >
+                  Delete
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* Active Studio Announcements Section (Sale or Booth Stand) */}
       <div className="bg-white rounded-2xl border border-neutral-200/80 shadow-2xs p-6 space-y-4">

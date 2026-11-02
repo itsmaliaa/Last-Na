@@ -1,17 +1,13 @@
 import React, { useState } from 'react';
-import { Search, Bell, Settings, LogOut } from 'lucide-react';
+import { Bell, Settings, LogOut } from 'lucide-react';
 import { RedNexusLogo } from './RedNexusLogo';
 
 interface AdminHeaderProps {
-  searchQuery: string;
-  onSearchChange: (q: string) => void;
   userName: string;
   onSignOut: () => void;
 }
 
 export const AdminHeader: React.FC<AdminHeaderProps> = ({
-  searchQuery,
-  onSearchChange,
   userName,
   onSignOut,
 }) => {
@@ -22,20 +18,6 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
     <header className="h-18 px-6 sm:px-8 bg-white/70 backdrop-blur-md border-b border-neutral-200/80 flex items-center justify-between gap-4 sm:gap-6 sticky top-0 z-30">
       <div className="shrink-0" title="Red Nexus Admin Portal">
         <RedNexusLogo size="md" />
-      </div>
-
-      {/* Search Input in Top Bar */}
-      <div className="flex-1 min-w-0 max-w-xl">
-        <div className="relative">
-          <Search className="w-4 h-4 text-neutral-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Search artworks, submitters, or documents..."
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-11 pr-4 py-2.5 text-sm bg-neutral-100/90 border border-transparent rounded-full focus:bg-white focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 transition-all placeholder:text-neutral-400"
-          />
-        </div>
       </div>
 
       {/* Right Controls */}

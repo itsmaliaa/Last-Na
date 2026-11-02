@@ -59,7 +59,7 @@ export const LocalAuthView: React.FC<LocalAuthViewProps> = ({ onAuthenticated })
 
       if (isRegistering) {
         if (role !== 'buyer') {
-          throw new Error('Only buyer accounts can be registered here. Seller and admin accounts must sign in.');
+          throw new Error('Only buyers can register. Seller and admin accounts are pre-made and must sign in.');
         }
         if (password.length < 8) {
           throw new Error('Choose a password with at least 8 characters.');
@@ -73,6 +73,7 @@ export const LocalAuthView: React.FC<LocalAuthViewProps> = ({ onAuthenticated })
           name: name.trim(),
           email: normalizedEmail,
           passwordHash: await hashLocalPassword(password),
+          createdAt: new Date().toISOString(),
           address: {
             id: 'address-home',
             label: 'Home',
@@ -83,12 +84,15 @@ export const LocalAuthView: React.FC<LocalAuthViewProps> = ({ onAuthenticated })
             isDefault: true,
           },
         };
+        newAccount.addresses = newAccount.address ? [newAccount.address] : [];
         saveLocalAccounts([...accounts, newAccount]);
         onAuthenticated({
           role: newAccount.role,
           name: newAccount.name,
           email: newAccount.email,
           address: newAccount.address,
+          addresses: newAccount.addresses,
+          createdAt: newAccount.createdAt,
         });
         return;
       }
@@ -105,11 +109,27 @@ export const LocalAuthView: React.FC<LocalAuthViewProps> = ({ onAuthenticated })
         throw new Error(`No matching ${role} account was found. Check the role, email, and password.`);
       }
 
+      if (account.isBanned) {
+        throw new Error('This account has been banned. Contact an administrator for assistance.');
+      }
+      if (account.isSuspended) {
+        throw new Error('This account has been suspended. Contact an administrator for assistance.');
+      }
+      if (account.role === 'seller' && account.sellerStatus !== 'Verified') {
+        throw new Error(
+          account.sellerStatus === 'Rejected'
+            ? 'This seller account was rejected. Contact an administrator for assistance.'
+            : 'This seller account is awaiting administrator approval.'
+        );
+      }
+
       onAuthenticated({
         role: account.role,
         name: account.name,
         email: account.email,
         address: account.address,
+        addresses: account.addresses ?? (account.address ? [account.address] : []),
+        createdAt: account.createdAt,
       });
     } catch (submitError: unknown) {
       setError(submitError instanceof Error ? submitError.message : 'Unable to complete local sign-in.');
@@ -289,12 +309,14 @@ export const LocalAuthView: React.FC<LocalAuthViewProps> = ({ onAuthenticated })
               </p>
             )}
 
-            {role !== 'buyer' && (
+            {(!isRegistering || role !== 'buyer') && (
               <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                <p className="text-xs font-bold uppercase tracking-wide text-slate-700">Local demo {role} credentials</p>
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-700">
+                  {role === 'buyer' ? 'Sample customer login' : `Local demo ${role} credentials`}
+                </p>
                 {demoCredentials.filter((credential) => credential.role === role).map((credential) => (
                   <div key={credential.email} className="mt-3 space-y-1 text-xs text-neutral-600">
-                    <p>Email: <code className="font-semibold text-slate-900">{credential.email}</code></p>
+                    <p>Username: <code className="font-semibold text-slate-900">{credential.email}</code></p>
                     <p>Password: <code className="font-semibold text-slate-900">{credential.password}</code></p>
                   </div>
                 ))}

@@ -17,6 +17,7 @@ interface ArtistProfileViewProps {
   artist?: ArtistDirectoryItem | null;
   onBackToArtists?: () => void;
   onToggleFavorite: (id: string) => void;
+  onAddToCart: (artwork: Artwork) => void;
   onSelectArtwork: (artwork: Artwork) => void;
   onNavigateToBuyerMessages: () => void;
 }
@@ -26,6 +27,7 @@ export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
   artist,
   onBackToArtists,
   onToggleFavorite,
+  onAddToCart,
   onSelectArtwork,
   onNavigateToBuyerMessages,
 }) => {
@@ -71,63 +73,11 @@ export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
   ];
   const displayMemberSince = artist?.memberSince || 'September 2024';
 
-  // 6 artworks for sale
-  const artistWorks = [
-    {
-      id: 'malia-1',
-      title: 'Golden Hour Reflections',
-      dept: `${displayName} (Arts & Design)`,
-      price: 2450,
-      rating: 5.0,
-      badge: 'Best Seller',
-      image: artworks[6]?.image || artworks[0]?.image,
-    },
-    {
-      id: 'malia-2',
-      title: 'Beijing Autumn Breeze',
-      dept: `${displayName} (Arts & Design)`,
-      price: 1850,
-      rating: 4.9,
-      badge: 'For Sale',
-      image: artworks[7]?.image || artworks[1]?.image,
-    },
-    {
-      id: 'malia-3',
-      title: 'Solitude of Form',
-      dept: `${displayName} (Arts & Design)`,
-      price: 3100,
-      rating: 4.8,
-      badge: 'Featured',
-      image: artworks[8]?.image || artworks[2]?.image,
-    },
-    {
-      id: 'malia-4',
-      title: 'Crimson Balance Study',
-      dept: `${displayName} (Arts & Design)`,
-      price: 1200,
-      rating: 4.7,
-      badge: 'For Sale',
-      image: artworks[2]?.image || artworks[3]?.image,
-    },
-    {
-      id: 'malia-5',
-      title: 'The Silent Alley',
-      dept: `${displayName} (Arts & Design)`,
-      price: 2100,
-      rating: 4.9,
-      badge: 'For Sale',
-      image: artworks[7]?.image || artworks[4]?.image,
-    },
-    {
-      id: 'malia-6',
-      title: 'Urban Rhythm',
-      dept: `${displayName} (Arts & Design)`,
-      price: 2800,
-      rating: 5.0,
-      badge: 'New',
-      image: artworks[0]?.image,
-    },
-  ];
+  const artistWorks = artworks.filter((artwork) => (
+    artwork.artist.toLowerCase() === displayName.toLowerCase() &&
+    artwork.status === 'approved' &&
+    artwork.isActive !== false
+  ));
 
   return (
     <div className="w-full bg-[#FAF9F6]/40 min-h-screen pb-16">
@@ -304,20 +254,18 @@ export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
         {/* 4. Artworks for Sale Grid (Exact match to artist profile.png) */}
         {activeTab === 'sale' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {artistWorks.map((item) => (
+            {artistWorks.length === 0 ? (
+              <div className="col-span-full rounded-2xl border border-dashed border-neutral-300 bg-white p-10 text-center">
+                <h3 className="font-bold text-slate-900">No artworks for sale yet</h3>
+                <p className="mt-2 text-sm text-neutral-500">Approved and published artworks from this artist will appear here.</p>
+              </div>
+            ) : artistWorks.map((item) => (
               <div
                 key={item.id}
                 className="bg-white rounded-2xl overflow-hidden border border-neutral-200/80 shadow-xs hover:shadow-lg transition-all flex flex-col group"
               >
                 <div
-                  onClick={() => {
-                    const fullItem = artworks.find((a) => a.title === item.title) || {
-                      ...artworks[0],
-                      title: item.title,
-                      price: item.price,
-                    };
-                    onSelectArtwork(fullItem);
-                  }}
+                  onClick={() => onSelectArtwork(item)}
                   className="relative aspect-4/3 overflow-hidden bg-neutral-100 cursor-pointer"
                 >
                   <img
@@ -325,21 +273,9 @@ export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
                     alt={item.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
-                  {item.badge && (
-                    <span
-                      className={`absolute top-3 left-3 px-2.5 py-0.5 rounded-full text-[11px] font-bold shadow-sm ${
-                        item.badge === 'Best Seller'
-                          ? 'bg-[#E52535] text-white'
-                          : item.badge === 'Featured'
-                          ? 'bg-rose-600 text-white'
-                          : item.badge === 'New'
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-[#E52535] text-white'
-                      }`}
-                    >
-                      {item.badge}
-                    </span>
-                  )}
+                  <span className="absolute top-3 left-3 rounded-full bg-[#E52535] px-2.5 py-0.5 text-[11px] font-bold text-white shadow-sm">
+                    {item.badge || 'For Sale'}
+                  </span>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -359,12 +295,13 @@ export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
                       </h4>
                       <div className="flex items-center gap-1 text-xs text-neutral-600 shrink-0 font-medium">
                         <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                        <span>{item.rating}</span>
+                        <span>{item.rating ?? 'New'}</span>
                       </div>
                     </div>
                     <p className="text-xs text-neutral-500 mt-1 truncate">
-                      {item.dept}
+                      {item.genre || item.mediumsUsed || `${displayName} (Arts & Design)`}
                     </p>
+                    {item.style && <p className="mt-1 truncate text-[11px] text-neutral-400">{item.style}</p>}
                   </div>
 
                   <div className="pt-4 mt-2 border-t border-neutral-100 flex items-center justify-between">
@@ -372,10 +309,11 @@ export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
                       ₱{item.price.toLocaleString()}
                     </span>
                     <button
-                      onClick={() => onToggleFavorite(item.id)}
-                      className="p-1.5 rounded-full hover:bg-neutral-100 text-neutral-400 hover:text-red-600 transition-colors cursor-pointer"
+                      onClick={() => onAddToCart(item)}
+                      disabled={item.stock === 0}
+                      className="rounded-full bg-slate-900 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-neutral-300"
                     >
-                      <Heart className="w-4 h-4" />
+                      {item.stock === 0 ? 'Sold out' : 'Add to cart'}
                     </button>
                   </div>
                 </div>

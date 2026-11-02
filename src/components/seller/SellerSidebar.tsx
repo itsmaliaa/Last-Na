@@ -4,7 +4,6 @@ import {
   LayoutGrid,
   TrendingUp,
   Palette,
-  ShoppingBag,
   BarChart3,
   MessageSquare,
   Image as ImageIcon,
@@ -15,7 +14,6 @@ import {
   ClipboardList,
   ShieldCheck,
   Tag,
-  Sparkles,
   Award,
   Search,
 } from 'lucide-react';
@@ -41,12 +39,18 @@ export const SellerSidebar: React.FC<SellerSidebarProps> = ({
   const [isArtVerificationOpen, setIsArtVerificationOpen] = useState(
     currentTab === 'art_verification' || currentTab === 'artist_gallery'
   );
-  const [isVoucherPromotionsOpen, setIsVoucherPromotionsOpen] = useState(
-    currentTab === 'voucher_generator' || currentTab === 'discount_code' || currentTab === 'promotions'
+  const [isVoucherMenuOpen, setIsVoucherMenuOpen] = useState(
+    currentTab === 'voucher_generator' || currentTab === 'discount_code'
   );
   const [isAuthenticityOpen, setIsAuthenticityOpen] = useState(
     currentTab === 'certificate' || currentTab === 'authenticity_check'
   );
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const handleSelectTab = (tab: SellerTab) => {
+    onSelectTab(tab);
+    setIsMobileMenuOpen(false);
+  };
 
   // Auto-expand when external navigation occurs (e.g. from Dashboard or Gallery buttons)
   useEffect(() => {
@@ -62,8 +66,8 @@ export const SellerSidebar: React.FC<SellerSidebarProps> = ({
   }, [currentTab]);
 
   useEffect(() => {
-    if (currentTab === 'voucher_generator' || currentTab === 'discount_code' || currentTab === 'promotions') {
-      setIsVoucherPromotionsOpen(true);
+    if (currentTab === 'voucher_generator' || currentTab === 'discount_code') {
+      setIsVoucherMenuOpen(true);
     }
   }, [currentTab]);
 
@@ -89,14 +93,14 @@ export const SellerSidebar: React.FC<SellerSidebarProps> = ({
     }
   };
 
-  const handleVoucherPromotionsParentClick = () => {
-    if (!isVoucherPromotionsOpen) {
-      setIsVoucherPromotionsOpen(true);
-      if (currentTab !== 'voucher_generator' && currentTab !== 'discount_code' && currentTab !== 'promotions') {
-        onSelectTab('voucher_generator');
+  const handleVoucherMenuClick = () => {
+    if (!isVoucherMenuOpen) {
+      setIsVoucherMenuOpen(true);
+      if (currentTab !== 'voucher_generator' && currentTab !== 'discount_code') {
+        handleSelectTab('voucher_generator');
       }
     } else {
-      setIsVoucherPromotionsOpen(false);
+      setIsVoucherMenuOpen(false);
     }
   };
 
@@ -106,23 +110,32 @@ export const SellerSidebar: React.FC<SellerSidebarProps> = ({
 
   const isOrderActive = currentTab === 'order' || currentTab === 'shipping_fulfillment' || currentTab === 'stock';
   const isArtVerificationActive = currentTab === 'art_verification' || currentTab === 'artist_gallery';
-  const isVoucherPromotionsActive =
-    currentTab === 'voucher_generator' || currentTab === 'discount_code' || currentTab === 'promotions';
+  const isVoucherMenuActive = currentTab === 'voucher_generator' || currentTab === 'discount_code';
   const isAuthenticityActive = currentTab === 'certificate' || currentTab === 'authenticity_check';
 
   return (
-    <aside className="w-64 bg-[#8E1B24] text-white min-h-[calc(100vh-4.5rem)] flex flex-col shrink-0 select-none rounded-tr-3xl transition-all shadow-xl pb-8">
+    <aside className="w-full bg-[#8E1B24] text-white md:w-64 md:min-h-[calc(100vh-4.5rem)] flex flex-col shrink-0 select-none md:rounded-tr-3xl transition-all shadow-xl pb-4 md:pb-8">
       {/* Navigation header row */}
-      <div className="pt-6 pb-3 px-6 flex items-center gap-3 text-white/80 font-medium text-sm">
-        <Menu className="w-4.5 h-4.5 text-white/80" />
-        <span className="font-semibold tracking-wide">Navigation</span>
+      <div className="pt-4 pb-2 px-5 md:pt-6 md:pb-3 md:px-6 flex items-center justify-between gap-3 text-white/80 font-medium text-sm">
+        <div className="flex items-center gap-3">
+          <Menu className="w-4.5 h-4.5 text-white/80" />
+          <span className="font-semibold tracking-wide">Navigation</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsMobileMenuOpen((isOpen) => !isOpen)}
+          aria-expanded={isMobileMenuOpen}
+          className="rounded-lg px-3 py-1.5 font-semibold text-white hover:bg-white/10 md:hidden"
+        >
+          {isMobileMenuOpen ? 'Close' : 'Menu'}
+        </button>
       </div>
 
       {/* Navigation links list */}
-      <nav className="flex-1 px-3 space-y-1.5 mt-1 text-sm font-medium">
+      <nav className={`${isMobileMenuOpen ? 'flex' : 'hidden'} flex-col md:flex md:flex-col flex-1 px-3 space-y-1.5 mt-1 text-sm font-medium`}>
         {/* 1. Dashboard */}
         <button
-          onClick={() => onSelectTab('dashboard')}
+          onClick={() => handleSelectTab('dashboard')}
           className={`w-full flex items-center justify-between px-4 py-3 rounded-full font-medium transition-all text-left cursor-pointer group ${
             currentTab === 'dashboard'
               ? 'bg-white text-slate-900 font-bold shadow-sm'
@@ -181,7 +194,7 @@ export const SellerSidebar: React.FC<SellerSidebarProps> = ({
               {/* Sub-item: Manage Order */}
               <button
                 type="button"
-                onClick={() => onSelectTab('order')}
+                onClick={() => handleSelectTab('order')}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition-all text-left cursor-pointer ${
                   currentTab === 'order' || currentTab === 'shipping_fulfillment'
                     ? 'bg-white text-slate-900 font-bold shadow-xs'
@@ -202,7 +215,7 @@ export const SellerSidebar: React.FC<SellerSidebarProps> = ({
               {/* Sub-item: Stock Inventory */}
               <button
                 type="button"
-                onClick={() => onSelectTab('stock')}
+                onClick={() => handleSelectTab('stock')}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition-all text-left cursor-pointer ${
                   currentTab === 'stock'
                     ? 'bg-white text-slate-900 font-bold shadow-xs'
@@ -262,7 +275,7 @@ export const SellerSidebar: React.FC<SellerSidebarProps> = ({
               {/* Sub-item: Product Verification */}
               <button
                 type="button"
-                onClick={() => onSelectTab('art_verification')}
+                onClick={() => handleSelectTab('art_verification')}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition-all text-left cursor-pointer ${
                   currentTab === 'art_verification'
                     ? 'bg-white text-slate-900 font-bold shadow-xs'
@@ -283,7 +296,7 @@ export const SellerSidebar: React.FC<SellerSidebarProps> = ({
               {/* Sub-item: Product Gallery */}
               <button
                 type="button"
-                onClick={() => onSelectTab('artist_gallery')}
+                onClick={() => handleSelectTab('artist_gallery')}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition-all text-left cursor-pointer ${
                   currentTab === 'artist_gallery'
                     ? 'bg-white text-slate-900 font-bold shadow-xs'
@@ -299,28 +312,9 @@ export const SellerSidebar: React.FC<SellerSidebarProps> = ({
           )}
         </div>
 
-        {/* 4. Marketing */}
-        <button
-          onClick={() => onSelectTab('marketing')}
-          className={`w-full flex items-center justify-between px-4 py-3 rounded-full font-medium transition-all text-left cursor-pointer group ${
-            currentTab === 'marketing'
-              ? 'bg-white text-slate-900 font-bold shadow-sm'
-              : 'text-white/85 hover:text-white hover:bg-white/10'
-          }`}
-        >
-          <div className="flex items-center gap-3.5 min-w-0">
-            <ShoppingBag
-              className={`w-4.5 h-4.5 shrink-0 transition-colors ${
-                currentTab === 'marketing' ? 'text-slate-900' : 'text-white/85 group-hover:text-white'
-              }`}
-            />
-            <span className="truncate">Marketing</span>
-          </div>
-        </button>
-
         {/* 5. Settlement and Payout (Renamed from Finance) */}
         <button
-          onClick={() => onSelectTab('finance')}
+          onClick={() => handleSelectTab('finance')}
           className={`w-full flex items-center justify-between px-4 py-3 rounded-full font-medium transition-all text-left cursor-pointer group ${
             currentTab === 'finance'
               ? 'bg-white text-slate-900 font-bold shadow-sm'
@@ -339,7 +333,7 @@ export const SellerSidebar: React.FC<SellerSidebarProps> = ({
 
         {/* 6. Customer Service (Renamed from Messages) */}
         <button
-          onClick={() => onSelectTab('messages')}
+          onClick={() => handleSelectTab('messages')}
           className={`w-full flex items-center justify-between px-4 py-3 rounded-full font-medium transition-all text-left cursor-pointer group ${
             currentTab === 'messages'
               ? 'bg-white text-slate-900 font-bold shadow-sm'
@@ -362,15 +356,15 @@ export const SellerSidebar: React.FC<SellerSidebarProps> = ({
           )}
         </button>
 
-        {/* 7. Voucher and Promotions (Dropdown with Voucher Generator, Discount Code, Promotions) */}
+        {/* 7. Vouchers and Discounts */}
         <div>
           <button
             type="button"
-            onClick={handleVoucherPromotionsParentClick}
+            onClick={handleVoucherMenuClick}
             className={`w-full flex items-center justify-between px-4 py-3 rounded-full font-medium transition-all text-left cursor-pointer group ${
-              isVoucherPromotionsActive && !isVoucherPromotionsOpen
+              isVoucherMenuActive && !isVoucherMenuOpen
                 ? 'bg-white text-slate-900 font-bold shadow-sm'
-                : isVoucherPromotionsActive
+                : isVoucherMenuActive
                 ? 'bg-white/15 text-white font-bold'
                 : 'text-white/85 hover:text-white hover:bg-white/10'
             }`}
@@ -378,28 +372,28 @@ export const SellerSidebar: React.FC<SellerSidebarProps> = ({
             <div className="flex items-center gap-3.5 min-w-0">
               <Ticket
                 className={`w-4.5 h-4.5 shrink-0 transition-colors ${
-                  isVoucherPromotionsActive && !isVoucherPromotionsOpen
+                  isVoucherMenuActive && !isVoucherMenuOpen
                     ? 'text-slate-900'
                     : 'text-white/85 group-hover:text-white'
                 }`}
               />
-              <span className="truncate">Voucher and Promotions</span>
+              <span className="truncate">Vouchers and Discounts</span>
             </div>
 
             <ChevronDown
               className={`w-4 h-4 text-white/70 transition-transform duration-200 ${
-                isVoucherPromotionsOpen ? 'rotate-180 text-white' : ''
+                isVoucherMenuOpen ? 'rotate-180 text-white' : ''
               }`}
             />
           </button>
 
-          {/* Voucher and Promotions Dropdown Items */}
-          {isVoucherPromotionsOpen && (
+          {/* Voucher and discount options */}
+          {isVoucherMenuOpen && (
             <div className="ml-5 pl-3 border-l-2 border-white/20 space-y-1 mt-1 mb-2 animate-in fade-in slide-in-from-top-1 duration-200">
               {/* Sub-item 1: Voucher Generator */}
               <button
                 type="button"
-                onClick={() => onSelectTab('voucher_generator')}
+                onClick={() => handleSelectTab('voucher_generator')}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition-all text-left cursor-pointer ${
                   currentTab === 'voucher_generator'
                     ? 'bg-white text-slate-900 font-bold shadow-xs'
@@ -415,7 +409,7 @@ export const SellerSidebar: React.FC<SellerSidebarProps> = ({
               {/* Sub-item 2: Discount Code */}
               <button
                 type="button"
-                onClick={() => onSelectTab('discount_code')}
+                onClick={() => handleSelectTab('discount_code')}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition-all text-left cursor-pointer ${
                   currentTab === 'discount_code'
                     ? 'bg-white text-slate-900 font-bold shadow-xs'
@@ -428,21 +422,6 @@ export const SellerSidebar: React.FC<SellerSidebarProps> = ({
                 </div>
               </button>
 
-              {/* Sub-item 3: Promotions */}
-              <button
-                type="button"
-                onClick={() => onSelectTab('promotions')}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition-all text-left cursor-pointer ${
-                  currentTab === 'promotions'
-                    ? 'bg-white text-slate-900 font-bold shadow-xs'
-                    : 'text-white/80 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <Sparkles className="w-4 h-4 shrink-0" />
-                  <span>Promotions</span>
-                </div>
-              </button>
             </div>
           )}
         </div>
@@ -481,7 +460,7 @@ export const SellerSidebar: React.FC<SellerSidebarProps> = ({
             <div className="ml-5 pl-3 border-l-2 border-white/20 space-y-1 mt-1 mb-2 animate-in fade-in slide-in-from-top-1 duration-200">
               <button
                 type="button"
-                onClick={() => onSelectTab('certificate')}
+                onClick={() => handleSelectTab('certificate')}
                 className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition-all text-left cursor-pointer ${
                   currentTab === 'certificate'
                     ? 'bg-white text-slate-900 font-bold shadow-xs'
@@ -493,7 +472,7 @@ export const SellerSidebar: React.FC<SellerSidebarProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => onSelectTab('authenticity_check')}
+                onClick={() => handleSelectTab('authenticity_check')}
                 className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition-all text-left cursor-pointer ${
                   currentTab === 'authenticity_check'
                     ? 'bg-white text-slate-900 font-bold shadow-xs'
@@ -509,7 +488,7 @@ export const SellerSidebar: React.FC<SellerSidebarProps> = ({
 
         {/* 8. Logs */}
         <button
-          onClick={() => onSelectTab('logs')}
+          onClick={() => handleSelectTab('logs')}
           className={`w-full flex items-center justify-between px-4 py-3 rounded-full font-medium transition-all text-left cursor-pointer group ${
             currentTab === 'logs'
               ? 'bg-white text-slate-900 font-bold shadow-sm'

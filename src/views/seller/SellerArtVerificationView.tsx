@@ -1,15 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Palette,
+  ArrowLeft,
   CheckCircle2,
   Clock,
   AlertCircle,
   PlusCircle,
   FileCheck,
   Image as ImageIcon,
+  Upload,
+  Film,
 } from 'lucide-react';
-import { Artwork } from '../../types';
+import { Artwork, ArtworkOptionGroup } from '../../types';
 import { ARTWORK_CATEGORIES, getArtworkCategoryLabel } from '../../utils/artworkCategories';
+import { ARTWORK_STYLE_SUGGESTIONS, ARTWORK_TYPE_SUGGESTIONS } from '../../utils/artworkTaxonomy';
 
 type SubmissionStatus = 'Active' | 'Reviewing' | 'Approved' | 'Rejected' | 'Draft';
 type VerificationFilter = SubmissionStatus;
@@ -19,12 +22,42 @@ interface SellerArtworkDraft {
   id: string;
   title: string;
   category: ArtworkCategory;
+  genre?: string;
+  style?: string;
   medium: string;
   dimensions: string;
   price: string;
   description: string;
   image: string;
+  video?: string;
+  productType: NonNullable<Artwork['productType']>;
+  fulfillmentType: NonNullable<Artwork['fulfillmentType']>;
+  weightKg: string;
+  stock: string;
+  designOptions: string[] | string;
+  sizeOptions: string[] | string;
+  colorOptions: string[];
+  optionGroups?: ArtworkOptionGroup[];
+  availablePayments: Artwork['availablePayments'];
+  paymentMethodsVersion?: 1;
 }
+
+const normalizePaymentMethods = (
+  value: unknown,
+  migrateLegacy = false,
+  fallbackToAll = true
+): NonNullable<Artwork['availablePayments']> => {
+  const methods = Array.isArray(value)
+    ? value.filter((method): method is NonNullable<Artwork['availablePayments']>[number] => (
+      method === 'Maya' || method === 'GCash'
+    ))
+    : [];
+  if (methods.length === 0) return fallbackToAll ? ['Maya', 'GCash'] : [];
+  if (migrateLegacy && methods.includes('GCash') && !methods.includes('Maya')) {
+    return ['Maya', 'GCash'];
+  }
+  return methods;
+};
 
 const VERIFICATION_FILTERS: VerificationFilter[] = [
   'Active',
@@ -33,6 +66,27 @@ const VERIFICATION_FILTERS: VerificationFilter[] = [
   'Rejected',
   'Draft',
 ];
+
+const createDefaultOptionGroups = (): ArtworkOptionGroup[] => [
+  { id: 'color', name: 'Color', options: [''] },
+  { id: 'size', name: 'Size', options: [''] },
+  { id: 'design', name: 'Design', options: [''] },
+];
+
+const createOptionGroupsFromDraft = (draft: SellerArtworkDraft): ArtworkOptionGroup[] => {
+  if (draft.optionGroups?.length) return draft.optionGroups;
+  const groups = createDefaultOptionGroups();
+  groups[0].options = draft.colorOptions.length ? draft.colorOptions : [''];
+  groups[1].options = normalizeLegacyOptions(draft.sizeOptions);
+  groups[2].options = normalizeLegacyOptions(draft.designOptions);
+  return groups;
+};
+
+const normalizeLegacyOptions = (options: string[] | string): string[] => (
+  Array.isArray(options) ? options : options.split(',')
+).map((option) => option.trim()).filter(Boolean).length
+  ? (Array.isArray(options) ? options : options.split(',')).map((option) => option.trim()).filter(Boolean)
+  : [''];
 
 interface SellerArtVerificationViewProps {
   artworks: Artwork[];
@@ -49,16 +103,31 @@ export const SellerArtVerificationView: React.FC<SellerArtVerificationViewProps>
   onSubmitArtwork,
   onActivateArtwork,
 }) => {
-  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [showSubmitPage, setShowSubmitPage] = useState(false);
   const [drafts, setDrafts] = useState<SellerArtworkDraft[]>([]);
   const [draftsLoaded, setDraftsLoaded] = useState(false);
   const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<ArtworkCategory>('painting');
+  const [artType, setArtType] = useState('');
+  const [artStyle, setArtStyle] = useState('');
   const [medium, setMedium] = useState('Oil on Canvas');
   const [dimensions, setDimensions] = useState('80x60 cm');
   const [price, setPrice] = useState('8500');
   const [description, setDescription] = useState('');
+  const [productType, setProductType] = useState<NonNullable<Artwork['productType']>>('pre_made');
+  const [fulfillmentType, setFulfillmentType] = useState<NonNullable<Artwork['fulfillmentType']>>('physical');
+  const [weightKg, setWeightKg] = useState('');
+  const [designOptions, setDesignOptions] = useState<string[]>(['']);
+  const [sizeOptions, setSizeOptions] = useState<string[]>(['']);
+  const [colorOptions, setColorOptions] = useState<string[]>(['']);
+  const [optionGroups, setOptionGroups] = useState<ArtworkOptionGroup[]>(createDefaultOptionGroups);
+  const [stock, setStock] = useState('1');
+  const [availablePayments, setAvailablePayments] = useState<NonNullable<Artwork['availablePayments']>>(['Maya', 'GCash']);
+  const [video, setVideo] = useState('');
+  const [imageFileName, setImageFileName] = useState('');
+  const [videoFileName, setVideoFileName] = useState('');
+  const [mediaError, setMediaError] = useState('');
   const [statusFilter, setStatusFilter] = useState<VerificationFilter>('Active');
   const [categoryFilter, setCategoryFilter] = useState<ArtworkCategory | 'all'>('all');
 
@@ -81,7 +150,21 @@ export const SellerArtVerificationView: React.FC<SellerArtVerificationViewProps>
           'title' in draft &&
           typeof draft.title === 'string'
         ));
-        setDrafts(savedDraftItems.length > 0 ? savedDraftItems : [{
+        setDrafts(savedDraftItems.length > 0 ? savedDraftItems.map((draft) => ({
+          ...draft,
+          genre: draft.genre ?? '',
+          style: draft.style ?? '',
+          productType: draft.productType ?? 'pre_made',
+          fulfillmentType: draft.fulfillmentType ?? 'physical',
+          weightKg: draft.weightKg ?? '',
+          stock: draft.stock ?? '1',
+          designOptions: draft.designOptions ?? [''],
+          sizeOptions: draft.sizeOptions ?? [''],
+          colorOptions: Array.isArray(draft.colorOptions) ? draft.colorOptions : [''],
+          optionGroups: createOptionGroupsFromDraft(draft),
+          availablePayments: normalizePaymentMethods(draft.availablePayments, draft.paymentMethodsVersion !== 1),
+          paymentMethodsVersion: 1,
+        })) : [{
           id: 'sample-draft-evening-light',
           title: 'Sample Draft: Evening Light Study',
           category: 'painting',
@@ -89,7 +172,17 @@ export const SellerArtVerificationView: React.FC<SellerArtVerificationViewProps>
           dimensions: '50x70 cm',
           price: '6800',
           description: 'Sample saved draft. Edit the details and submit it for admin approval when ready.',
-          image: sellerArtworks[0]?.image ?? artworks[0]?.image ?? '',
+          image: '',
+          video: '',
+          productType: 'pre_made',
+          fulfillmentType: 'physical',
+          weightKg: '',
+          stock: '1',
+          designOptions: [''],
+          sizeOptions: [''],
+          colorOptions: [''],
+          availablePayments: ['Maya', 'GCash'],
+          paymentMethodsVersion: 1,
         }]);
       } else {
         setDrafts([{
@@ -100,7 +193,17 @@ export const SellerArtVerificationView: React.FC<SellerArtVerificationViewProps>
           dimensions: '50x70 cm',
           price: '6800',
           description: 'Sample saved draft. Edit the details and submit it for admin approval when ready.',
-          image: sellerArtworks[0]?.image ?? artworks[0]?.image ?? '',
+          image: '',
+          video: '',
+          productType: 'pre_made',
+          fulfillmentType: 'physical',
+          weightKg: '',
+          stock: '1',
+          designOptions: [''],
+          sizeOptions: [''],
+          colorOptions: [''],
+          availablePayments: ['Maya', 'GCash'],
+          paymentMethodsVersion: 1,
         }]);
       }
     } catch (error) {
@@ -154,25 +257,164 @@ export const SellerArtVerificationView: React.FC<SellerArtVerificationViewProps>
     setEditingDraftId(draft?.id ?? null);
     setTitle(draft?.title ?? '');
     setCategory(draft?.category ?? 'painting');
+    setArtType(draft?.genre ?? '');
+    setArtStyle(draft?.style ?? '');
     setMedium(draft?.medium ?? 'Oil on Canvas');
     setDimensions(draft?.dimensions ?? '80x60 cm');
     setPrice(draft?.price ?? '8500');
     setDescription(draft?.description ?? '');
     setImageUrl(draft?.image ?? '');
-    setShowSubmitModal(true);
+    setVideo(draft?.video ?? '');
+    setImageFileName(draft?.image?.startsWith('data:') ? 'Uploaded artwork image' : '');
+    setVideoFileName(draft?.video?.startsWith('data:') ? 'Uploaded artwork video' : '');
+    setMediaError('');
+    setProductType(draft?.productType ?? 'pre_made');
+    setFulfillmentType(draft?.fulfillmentType ?? 'physical');
+    setWeightKg(draft?.weightKg ?? '');
+    setDesignOptions(normalizeOptions(draft?.designOptions));
+    setSizeOptions(normalizeOptions(draft?.sizeOptions));
+    setColorOptions(draft?.colorOptions ?? ['']);
+    setOptionGroups(draft ? createOptionGroupsFromDraft(draft) : createDefaultOptionGroups());
+    setStock(draft?.stock ?? '1');
+    setAvailablePayments(normalizePaymentMethods(draft?.availablePayments, draft?.paymentMethodsVersion !== 1));
+    setShowSubmitPage(true);
   };
 
   const [imageUrl, setImageUrl] = useState('');
+
+  const readFileAsDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') resolve(reader.result);
+      else reject(new Error('The selected file could not be read.'));
+    };
+    reader.onerror = () => reject(new Error('The selected file could not be read.'));
+    reader.readAsDataURL(file);
+  });
+
+  const handleImageUpload = async (file?: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setMediaError('Select a valid image file.');
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setMediaError('Choose an image smaller than 8 MB.');
+      return;
+    }
+    try {
+      const source = await readFileAsDataUrl(file);
+      const image = new Image();
+      image.src = source;
+      await new Promise<void>((resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = () => reject(new Error('The selected image could not be opened.'));
+      });
+      const scale = Math.min(1, 1600 / image.width, 1600 / image.height);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(image.width * scale));
+      canvas.height = Math.max(1, Math.round(image.height * scale));
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('Image processing is not available in this browser.');
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const compressedImage = canvas.toDataURL('image/jpeg', 0.78);
+      if (compressedImage.length > 2_000_000) {
+        throw new Error('This image is still too large to save. Choose a smaller image.');
+      }
+      setImageUrl(compressedImage);
+      setImageFileName(file.name);
+      setMediaError('');
+    } catch (error) {
+      setMediaError(error instanceof Error ? error.message : 'The image could not be imported.');
+    }
+  };
+
+  const handleVideoUpload = async (file?: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('video/')) {
+      setMediaError('Select a valid video file.');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setMediaError('Choose a video smaller than 2 MB so it can be saved with your draft.');
+      return;
+    }
+    try {
+      setVideo(await readFileAsDataUrl(file));
+      setVideoFileName(file.name);
+      setMediaError('');
+    } catch (error) {
+      setMediaError(error instanceof Error ? error.message : 'The video could not be imported.');
+    }
+  };
+
+  const handleOptionImageUpload = async (groupId: string, option: string, file?: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setMediaError('Select an image file for this color option.');
+      return;
+    }
+    if (file.size > 3 * 1024 * 1024) {
+      setMediaError('Choose a color image smaller than 3 MB.');
+      return;
+    }
+    try {
+      const source = await readFileAsDataUrl(file);
+      const image = new Image();
+      image.src = source;
+      await new Promise<void>((resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = () => reject(new Error('The selected color image could not be opened.'));
+      });
+      const scale = Math.min(1, 800 / image.width, 800 / image.height);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(image.width * scale));
+      canvas.height = Math.max(1, Math.round(image.height * scale));
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('Image processing is not available in this browser.');
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const compressedImage = canvas.toDataURL('image/jpeg', 0.68);
+      if (compressedImage.length > 500_000) {
+        throw new Error('This color image is too large to save. Choose a smaller image.');
+      }
+      setOptionGroups((previous) => previous.map((group) => (
+        group.id === groupId
+          ? { ...group, optionImages: { ...group.optionImages, [option]: compressedImage } }
+          : group
+      )));
+      setMediaError('');
+    } catch (error) {
+      setMediaError(error instanceof Error ? error.message : 'The color image could not be imported.');
+    }
+  };
+
+  const normalizeOptions = (options?: string[] | string) => {
+    if (Array.isArray(options)) return options.length > 0 ? options : [''];
+    return options ? options.split(',').map((option) => option.trim()) : [''];
+  };
 
   const getDraftFromForm = (): SellerArtworkDraft => ({
     id: editingDraftId ?? `draft-${Date.now()}`,
     title: title.trim(),
     category,
+    genre: artType.trim(),
+    style: artStyle.trim(),
     medium: medium.trim(),
     dimensions: dimensions.trim(),
     price,
     description: description.trim(),
     image: imageUrl.trim(),
+    video,
+    productType,
+    fulfillmentType: productType === 'digital' ? 'digital' : fulfillmentType,
+    weightKg,
+    designOptions,
+    sizeOptions,
+    colorOptions,
+    optionGroups,
+    stock,
+    availablePayments,
+    paymentMethodsVersion: 1,
   });
 
   const handleSaveDraft = () => {
@@ -185,88 +427,106 @@ export const SellerArtVerificationView: React.FC<SellerArtVerificationViewProps>
       ? previous.map((item) => item.id === editingDraftId ? draft : item)
       : [draft, ...previous]);
     setStatusFilter('Draft');
-    setShowSubmitModal(false);
+    setShowSubmitPage(false);
     onShowToast('Draft saved', `"${draft.title}" is saved for later.`, 'success');
-  };
-
-  const downloadImportTemplate = () => {
-    const csv = [
-      'title,category,medium,dimensions,price,description,image_url',
-      'Sample Artwork,painting,Oil on Canvas,50x70 cm,6800,Sample product description,https://example.com/artwork.jpg',
-    ].join('\n');
-    const link = document.createElement('a');
-    const templateUrl = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-    link.href = templateUrl;
-    link.download = 'seller-product-import-template.csv';
-    link.click();
-    window.setTimeout(() => URL.revokeObjectURL(templateUrl), 1000);
-    onShowToast(
-      'Import template downloaded',
-      'Category values: painting, sculpture, architecture, digital, photography, print, or mixed_media.',
-      'success'
-    );
   };
 
   const handleSubmit = (e?: React.FormEvent<HTMLFormElement>, draft?: SellerArtworkDraft) => {
     e?.preventDefault();
     const product = draft ?? getDraftFromForm();
     const productPrice = Number(product.price);
-    if (!product.title.trim() || !product.image.trim() || !Number.isFinite(productPrice) || productPrice <= 0) {
-      onShowToast('Product details required', 'Enter a title, artwork image URL, and valid price before submitting for approval.', 'error');
+    const productWeight = Number(product.weightKg);
+    const productStock = Number(product.stock);
+    const needsWeight = product.productType !== 'digital' && product.fulfillmentType === 'physical';
+    const eligiblePayments = normalizePaymentMethods(product.availablePayments, false, false);
+    const submittedOptionGroups = (product.optionGroups ?? createDefaultOptionGroups())
+      .map((group) => ({
+        ...group,
+        name: group.name.trim(),
+        options: group.options.map((option) => option.trim()).filter(Boolean),
+      }))
+      .filter((group) => group.name && group.options.length > 0);
+    const optionGroupNames = submittedOptionGroups.map((group) => group.name.toLowerCase());
+    if (
+      !product.title.trim() ||
+      !product.image.trim() ||
+      !Number.isFinite(productPrice) ||
+      productPrice <= 0 ||
+      !Number.isInteger(productStock) ||
+      productStock < 0 ||
+      productStock > 999 ||
+      product.stock.trim() === '' ||
+      eligiblePayments.length === 0 ||
+      new Set(optionGroupNames).size !== optionGroupNames.length ||
+      (needsWeight && (!Number.isFinite(productWeight) || productWeight <= 0))
+    ) {
+      onShowToast(
+        'Product details required',
+        'Enter a title, import an artwork image, provide valid price and stock, select at least one payment method, use unique option group names, and add product weight for physical items.',
+        'error'
+      );
       return;
     }
 
     onSubmitArtwork?.({
       title: product.title.trim(),
       image: product.image.trim(),
+      video: product.video || undefined,
       price: productPrice,
       category: product.category,
+      genre: product.genre?.trim() || undefined,
+      style: product.style?.trim() || undefined,
       size: product.dimensions,
       mediumsUsed: product.medium,
       description: product.description,
+      productType: product.productType,
+      fulfillmentType: product.productType === 'digital' ? 'digital' : product.fulfillmentType,
+      weightKg: Number(product.weightKg) || undefined,
+      stock: Number(product.stock),
+      designOptions: normalizeOptions(product.designOptions).map((option) => option.trim()).filter(Boolean),
+      sizeOptions: normalizeOptions(product.sizeOptions).map((option) => option.trim()).filter(Boolean),
+      colorOptions: product.colorOptions.map((option) => option.trim()).filter(Boolean),
+      colors: product.colorOptions.map((option) => option.trim()).filter(Boolean),
+      optionGroups: submittedOptionGroups,
+      availablePayments: eligiblePayments,
     });
     setDrafts((previous) => previous.filter((item) => item.id !== product.id));
     setStatusFilter('Reviewing');
-    setShowSubmitModal(false);
+    setShowSubmitPage(false);
     setTitle('');
+    setArtType('');
+    setArtStyle('');
     setDescription('');
     setImageUrl('');
+    setVideo('');
+    setImageFileName('');
+    setVideoFileName('');
+    setMediaError('');
     if (!draft) onShowToast('Artwork Submitted', `"${product.title}" has been submitted for admin approval.`, 'success');
   };
 
   return (
     <div className="space-y-6">
-      {/* Top Banner & Submit CTA */}
-      <div className="bg-white rounded-2xl p-6 border border-neutral-200/80 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {!showSubmitPage && (
+        <>
+      {/* Product verification heading and creation action */}
+      <div className="bg-[#FFFFFF] p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs font-bold text-red-600 uppercase tracking-wider">
-            <Palette className="w-4 h-4" />
-            <span>Faculty Verification Gateway</span>
-          </div>
-          <h2 className="text-xl font-extrabold text-slate-900 mt-1">
+          <h2 className="text-xl font-extrabold text-slate-900">
             Product Verification
           </h2>
           <p className="text-xs text-neutral-500 mt-0.5">
-            Every piece on Red Nexus is reviewed by faculty to guarantee 100% genuine student craftsmanship.
+            Create a product and submit it for faculty review.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={downloadImportTemplate}
-            className="rounded-full border border-neutral-200 px-4 py-2.5 text-xs font-bold text-slate-700 transition-colors hover:bg-neutral-50"
-          >
-            Download import template
-          </button>
-          <button
-            onClick={() => openDraftForm()}
-            className="px-5 py-2.5 bg-[#DC2626] hover:bg-[#B91C1C] text-white rounded-full text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer shrink-0"
-          >
-            <PlusCircle className="w-4 h-4" />
-            <span>Submit Work for Review</span>
-          </button>
-        </div>
+        <button
+          onClick={() => openDraftForm()}
+          className="px-5 py-2.5 bg-[#DC2626] hover:bg-[#B91C1C] text-white rounded-full text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer shrink-0"
+        >
+          <PlusCircle className="w-4 h-4" />
+          <span>Create Product</span>
+        </button>
       </div>
 
       {/* Verification Status List */}
@@ -323,6 +583,8 @@ export const SellerArtVerificationView: React.FC<SellerArtVerificationViewProps>
                 <h4 className="font-bold text-sm text-slate-900">{artwork.title}</h4>
                 <p className="mt-1 text-xs text-neutral-500">
                   <span className="font-semibold text-slate-700">{getArtworkCategoryLabel(artwork.category)}</span>
+                  {artwork.genre && ` · ${artwork.genre}`}
+                  {artwork.style && ` · ${artwork.style}`}
                   {' · '}{artwork.mediumsUsed || 'Medium not set'} · {artwork.size} · ₱{artwork.price.toLocaleString()}
                 </p>
                 <p className="mt-1 text-xs text-neutral-500">
@@ -366,6 +628,8 @@ export const SellerArtVerificationView: React.FC<SellerArtVerificationViewProps>
                 <h4 className="font-bold text-sm text-slate-900">{draft.title}</h4>
                 <p className="mt-1 text-xs text-neutral-500">
                   <span className="font-semibold text-slate-700">{getArtworkCategoryLabel(draft.category)}</span>
+                  {draft.genre && ` · ${draft.genre}`}
+                  {draft.style && ` · ${draft.style}`}
                   {' · Draft · '}{draft.medium || 'Medium not set'} · {draft.dimensions || 'Dimensions not set'}
                 </p>
               </div>
@@ -399,21 +663,28 @@ export const SellerArtVerificationView: React.FC<SellerArtVerificationViewProps>
           </div>
         )}
       </div>
+        </>
+      )}
 
-      {/* Submission Modal */}
-      {showSubmitModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-neutral-100 space-y-5 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
-              <h3 className="font-extrabold text-lg text-slate-900">Submit Artwork for CAFA Review</h3>
-              <button
-                onClick={() => setShowSubmitModal(false)}
-                className="p-1.5 text-neutral-400 hover:text-neutral-700 rounded-full hover:bg-neutral-100 cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
+      {showSubmitPage && (
+        <section className="mx-auto w-full max-w-5xl space-y-5">
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowSubmitPage(false)}
+              className="mb-4 inline-flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-neutral-100 hover:text-slate-900"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Product Verification
+            </button>
+            <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
+              Submit Artwork for CAFA Review
+            </h2>
+            <p className="mt-2 text-sm text-neutral-500">
+              Add your artwork details and submit them for faculty review.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-neutral-200/80 bg-white p-6 shadow-2xs sm:p-8">
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
               <div>
                 <label className="block font-bold text-slate-700 mb-1">Artwork Title *</label>
@@ -427,13 +698,13 @@ export const SellerArtVerificationView: React.FC<SellerArtVerificationViewProps>
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Category</label>
+                  <label className="block font-bold text-slate-700 mb-1">Artwork category *</label>
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value as ArtworkCategory)}
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-xs focus:outline-none"
+                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-sm"
                   >
                     {ARTWORK_CATEGORIES.map((item) => (
                       <option key={item.value} value={item.value}>{item.label}</option>
@@ -441,35 +712,266 @@ export const SellerArtVerificationView: React.FC<SellerArtVerificationViewProps>
                   </select>
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Price (₱) *</label>
-                  <input
-                    type="number"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-xs focus:outline-none focus:border-red-500"
-                  />
+                  <label className="mb-1 block font-bold text-slate-700">Product type *</label>
+                  <select
+                    value={productType}
+                    onChange={(event) => {
+                      const nextType = event.target.value as NonNullable<Artwork['productType']>;
+                      setProductType(nextType);
+                      if (nextType === 'digital') setFulfillmentType('digital');
+                    }}
+                    className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm"
+                  >
+                    <option value="pre_made">Pre-made</option>
+                    <option value="digital">Digital art</option>
+                    <option value="custom_made">Custom-made</option>
+                  </select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <section className="space-y-3 rounded-xl border border-neutral-200 p-3">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Mediums Used</label>
+                  <h3 className="font-bold text-slate-700">Artwork classification</h3>
+                  <p className="mt-1 text-[11px] leading-relaxed text-neutral-500">
+                    Choose an art type and style from any program, or enter your own. Your academic program does not limit what you can create or sell.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <label className="block text-xs font-bold text-slate-700">
+                    Art type
+                    <input
+                      type="text"
+                      list="seller-art-type-suggestions"
+                      value={artType}
+                      onChange={(event) => setArtType(event.target.value)}
+                      placeholder="Choose or enter an art type"
+                      className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm font-normal"
+                    />
+                    <datalist id="seller-art-type-suggestions">
+                      {ARTWORK_TYPE_SUGGESTIONS.map((suggestion) => <option key={suggestion} value={suggestion} />)}
+                    </datalist>
+                  </label>
+                  <label className="block text-xs font-bold text-slate-700">
+                    Art style
+                    <input
+                      type="text"
+                      list="seller-art-style-suggestions"
+                      value={artStyle}
+                      onChange={(event) => setArtStyle(event.target.value)}
+                      placeholder="Choose or enter an art style"
+                      className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm font-normal"
+                    />
+                    <datalist id="seller-art-style-suggestions">
+                      {ARTWORK_STYLE_SUGGESTIONS.map((suggestion) => <option key={suggestion} value={suggestion} />)}
+                    </datalist>
+                  </label>
+                </div>
+              </section>
+
+              {productType !== 'digital' && (
+                <div>
+                  <label className="mb-1 block font-bold text-slate-700">Fulfillment *</label>
+                  <select
+                    value={fulfillmentType}
+                    onChange={(event) => {
+                      const nextType = event.target.value as NonNullable<Artwork['fulfillmentType']>;
+                      setFulfillmentType(nextType);
+                    }}
+                    className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm"
+                  >
+                    <option value="physical">Physical product</option>
+                    <option value="digital">Digital delivery</option>
+                  </select>
+                </div>
+              )}
+
+              <fieldset className="space-y-2 rounded-xl border border-neutral-200 p-3">
+                <legend className="px-1 font-bold text-slate-700">Payment methods allowed *</legend>
+                {(['Maya', 'GCash'] as const).map((method) => {
+                  const label = method;
+                  const checked = availablePayments.includes(method);
+                  return (
+                    <label key={method} className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(event) => {
+                          setAvailablePayments((previous) => event.target.checked
+                            ? [...previous, method]
+                            : previous.filter((payment) => payment !== method));
+                        }}
+                      />
+                      {label}
+                    </label>
+                  );
+                })}
+                <p className="text-[11px] leading-relaxed text-neutral-500">
+                  Choose the online wallets customers can use for this product. Maya and GCash are available for every product type.
+                </p>
+              </fieldset>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div>
+                  <label className="mb-1 block font-bold text-slate-700">
+                    Selling price (₱) *
+                  </label>
+                  <input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    required
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm"
+                  />
+                  <p className="mt-1 text-[11px] leading-relaxed text-amber-800">
+                    Required: include an additional 10% in this price to cover the system commission.
+                  </p>
+                </div>
+                <div>
+                  <label className="mb-1 block font-bold text-slate-700">
+                    Stock quantity *
+                  </label>
+                  <input type="number" min="0" max="999" step="1" required value={stock} onChange={(event) => setStock(event.target.value)} className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm" />
+                  <p className="mt-1 text-[11px] text-neutral-500">You can edit this later in Stock Inventory.</p>
+                </div>
+                <div>
+                  <label className="mb-1 block font-bold text-slate-700">Weight (kg) {productType !== 'digital' && fulfillmentType === 'physical' ? '*' : ''}</label>
+                  <input type="number" min="0.01" step="0.01" required={productType !== 'digital' && fulfillmentType === 'physical'} value={weightKg} onChange={(event) => setWeightKg(event.target.value)} className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm" />
+                </div>
+              </div>
+
+              <section className="space-y-3 rounded-xl border border-neutral-200 p-3">
+                <div>
+                  <h4 className="font-bold text-slate-700">Customer-selectable options</h4>
+                  <p className="mt-1 text-[11px] text-neutral-500">
+                    Add option groups such as color, size, material, finish, or framing. Customers choose one value from each group.
+                  </p>
+                </div>
+                {optionGroups.map((group) => (
+                  <fieldset key={group.id} className="space-y-2 rounded-xl border border-neutral-200 p-3">
+                    <div className="flex items-center gap-2">
+                      <label htmlFor={`option-group-name-${group.id}`} className="sr-only">Option group name</label>
+                      <input
+                        id={`option-group-name-${group.id}`}
+                        type="text"
+                        value={group.name}
+                        onChange={(event) => setOptionGroups((previous) => previous.map((item) => item.id === group.id ? { ...item, name: event.target.value } : item))}
+                        placeholder="Option group name, e.g. Material"
+                        className="min-w-0 flex-1 rounded-xl border border-neutral-200 px-3 py-2 text-sm font-semibold"
+                      />
+                      {optionGroups.length > 1 && (
+                        <button type="button" onClick={() => setOptionGroups((previous) => previous.filter((item) => item.id !== group.id))} className="rounded-lg border border-neutral-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-neutral-50">
+                          Remove group
+                        </button>
+                      )}
+                    </div>
+                    {group.options.map((value, index) => (
+                      <div key={`${group.id}-option-${index}`} className="space-y-2 rounded-lg bg-neutral-50 p-2">
+                        <div className="flex items-center gap-2">
+                          <label className="sr-only" htmlFor={`${group.id}-option-${index}`}>{group.name || 'Option'} value {index + 1}</label>
+                          <input
+                            id={`${group.id}-option-${index}`}
+                            type="text"
+                            value={value}
+                            onChange={(event) => {
+                              const nextValue = event.target.value;
+                              setOptionGroups((previous) => previous.map((item) => {
+                                if (item.id !== group.id) return item;
+                                const optionImages = { ...item.optionImages };
+                                if (value && value !== nextValue && optionImages[value]) {
+                                  optionImages[nextValue] = optionImages[value];
+                                  delete optionImages[value];
+                                }
+                                return {
+                                  ...item,
+                                  options: item.options.map((option, optionIndex) => optionIndex === index ? nextValue : option),
+                                  optionImages,
+                                };
+                              }));
+                            }}
+                            placeholder={`${group.name || 'Option'} choice ${index + 1}`}
+                            className="min-w-0 flex-1 rounded-xl border border-neutral-200 px-3 py-2 text-sm"
+                          />
+                          {group.options.length > 1 && (
+                            <button type="button" onClick={() => setOptionGroups((previous) => previous.map((item) => {
+                              if (item.id !== group.id) return item;
+                              const optionImages = { ...item.optionImages };
+                              delete optionImages[value];
+                              return {
+                                ...item,
+                                options: item.options.filter((_, optionIndex) => optionIndex !== index),
+                                optionImages,
+                              };
+                            }))} className="rounded-lg border border-neutral-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-neutral-50">
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                        {group.name.trim().toLowerCase() === 'color' && (
+                          <div className="flex items-center gap-3">
+                            {group.optionImages?.[value] && (
+                              <img src={group.optionImages[value]} alt={`${value} color preview`} className="h-14 w-14 rounded-lg border border-neutral-200 object-cover" />
+                            )}
+                            <label className="cursor-pointer rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-neutral-100">
+                              {group.optionImages?.[value] ? 'Change color photo' : 'Add color photo (optional)'}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="sr-only"
+                                disabled={!value.trim()}
+                                onChange={(event) => {
+                                  const file = event.target.files?.[0];
+                                  event.target.value = '';
+                                  void handleOptionImageUpload(group.id, value, file);
+                                }}
+                              />
+                            </label>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setOptionGroups((previous) => previous.map((item) => item.id === group.id ? { ...item, options: [...item.options, ''] } : item))}
+                      className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-50"
+                    >
+                      <PlusCircle className="h-4 w-4" /> Add option {group.options.length + 1}
+                    </button>
+                  </fieldset>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setOptionGroups((previous) => [...previous, {
+                    id: `option-group-${Date.now()}-${previous.length}`,
+                    name: '',
+                    options: [''],
+                  }])}
+                  className="inline-flex items-center gap-1 rounded-lg bg-red-700 px-3 py-2 text-xs font-bold text-white hover:bg-red-800"
+                >
+                  <PlusCircle className="h-4 w-4" /> Add option group
+                </button>
+              </section>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Materials used</label>
                   <input
                     type="text"
                     value={medium}
                     onChange={(e) => setMedium(e.target.value)}
-                    placeholder="e.g. Oil on Canvas"
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-xs focus:outline-none"
+                    placeholder="e.g. Oil paint, canvas, varnish"
+                    className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Dimensions</label>
+                  <label className="block font-bold text-slate-700 mb-1">Artwork size / dimensions</label>
                   <input
                     type="text"
                     value={dimensions}
                     onChange={(e) => setDimensions(e.target.value)}
-                    placeholder="e.g. 60x80 cm"
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-xs focus:outline-none"
+                    placeholder="e.g. 60 × 80 cm"
+                    className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm"
                   />
                 </div>
               </div>
@@ -486,16 +988,54 @@ export const SellerArtVerificationView: React.FC<SellerArtVerificationViewProps>
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Artwork image URL *</label>
-                <input
-                  type="url"
-                  required
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="https://example.com/artwork.jpg"
-                  className="w-full px-3.5 py-2 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:border-red-500"
-                />
-                <p className="mt-1 text-[11px] text-neutral-500">Required to submit for approval; drafts can be saved without an image.</p>
+                <h4 className="font-bold text-slate-700">Artwork media</h4>
+                <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-neutral-300 p-4 text-center hover:border-red-400 hover:bg-red-50/40">
+                    <Upload className="h-5 w-5 text-red-700" />
+                    <span className="text-sm font-bold text-slate-800">Import artwork image *</span>
+                    <span className="text-[11px] text-neutral-500">PNG, JPG, WebP · max 8 MB</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(event) => {
+                        void handleImageUpload(event.target.files?.[0]);
+                        event.target.value = '';
+                      }}
+                      className="sr-only"
+                    />
+                  </label>
+                  <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-neutral-300 p-4 text-center hover:border-red-400 hover:bg-red-50/40">
+                    <Film className="h-5 w-5 text-red-700" />
+                    <span className="text-sm font-bold text-slate-800">Import artwork video</span>
+                    <span className="text-[11px] text-neutral-500">Video file · optional · max 2 MB</span>
+                    <input
+                      type="file"
+                      accept="video/*"
+                      onChange={(event) => {
+                        void handleVideoUpload(event.target.files?.[0]);
+                        event.target.value = '';
+                      }}
+                      className="sr-only"
+                    />
+                  </label>
+                </div>
+                {imageFileName && (
+                  <div className="mt-3 flex items-center gap-3 rounded-xl bg-neutral-50 p-3">
+                    <img src={imageUrl} alt="Uploaded artwork preview" className="h-16 w-16 rounded-lg object-cover" />
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-700">{imageFileName}</span>
+                    <button type="button" onClick={() => { setImageUrl(''); setImageFileName(''); }} className="text-xs font-semibold text-red-700 hover:underline">Remove</button>
+                  </div>
+                )}
+                {videoFileName && (
+                  <div className="mt-3 flex items-center gap-3 rounded-xl bg-neutral-50 p-3">
+                    <Film className="h-5 w-5 shrink-0 text-red-700" />
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-700">{videoFileName}</span>
+                    <button type="button" onClick={() => { setVideo(''); setVideoFileName(''); }} className="text-xs font-semibold text-red-700 hover:underline">Remove</button>
+                  </div>
+                )}
+                {video && <video src={video} controls className="mt-3 max-h-48 w-full rounded-xl bg-black" />}
+                {mediaError && <p role="alert" className="mt-2 text-xs font-medium text-red-700">{mediaError}</p>}
+                <p className="mt-2 text-[11px] text-neutral-500">An image is required to submit; a video is optional. Drafts can be saved without media and completed later.</p>
               </div>
 
               <div className="flex gap-3 pt-2">
@@ -514,15 +1054,15 @@ export const SellerArtVerificationView: React.FC<SellerArtVerificationViewProps>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowSubmitModal(false)}
+                  onClick={() => setShowSubmitPage(false)}
                   className="px-4 py-2.5 border border-neutral-200 rounded-xl font-semibold text-xs text-neutral-600 hover:bg-neutral-50 cursor-pointer"
                 >
-                  Cancel
+                  Back
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </section>
       )}
     </div>
   );

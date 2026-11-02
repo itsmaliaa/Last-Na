@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
+  ChevronLeft,
   ChevronRight,
   Star,
   ShieldCheck,
@@ -9,13 +10,14 @@ import {
   ArrowRight,
   Heart,
 } from 'lucide-react';
-import { Artwork, RankedArtist } from '../types';
+import { Artwork, HomePromotion, RankedArtist } from '../types';
 import { AllCategoriesSlideDown } from '../components/AllCategoriesSlideDown';
 import { BlackCartIcon } from '../components/BlackCartIcon';
 import { oilBannerImg } from '../data/mockData';
 
 interface HomeViewProps {
   artworks: Artwork[];
+  homePromotions: HomePromotion[];
   rankedArtists: RankedArtist[];
   onToggleFollowArtist: (id: string) => void;
   onToggleFavorite: (id: string) => void;
@@ -32,6 +34,7 @@ interface HomeViewProps {
 
 export const HomeView: React.FC<HomeViewProps> = ({
   artworks,
+  homePromotions,
   rankedArtists,
   onToggleFollowArtist,
   onToggleFavorite,
@@ -51,6 +54,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [selectedMaterials, setSelectedMaterials] = useState<string[]>([]);
   const [selectedColor, setSelectedColor] = useState<string | null>('Red');
   const [priceValue, setPriceValue] = useState<number>(10000);
+  const [homePromotionSlide, setHomePromotionSlide] = useState(0);
+  const heroTouchStartX = useRef<number | null>(null);
   // Style chips row matching all Categories button slide down bar.png
   const styleChips = [
     'All Style',
@@ -59,8 +64,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
     'Abstract Form',
     'Traditional Chinese Ink',
     'Pop Art',
-    'Cute / Kawaii',
-    'Cute / Kawaii',
     'Cute / Kawaii',
   ];
 
@@ -80,6 +83,48 @@ export const HomeView: React.FC<HomeViewProps> = ({
     setSelectedMaterials((prev) =>
       prev.includes(mat) ? prev.filter((m) => m !== mat) : [...prev, mat]
     );
+  };
+
+  const activeHomePromotions = homePromotions
+    .map((promotion) => ({
+      promotion,
+      legacyArtwork: artworks.find((artwork) => (
+        artwork.id === promotion.artworkId &&
+        artwork.status === 'approved' &&
+        artwork.isActive !== false
+      )),
+    }))
+    .map(({ promotion, legacyArtwork }) => ({
+      promotion,
+      image: promotion.image || legacyArtwork?.image,
+    }))
+    .filter((entry): entry is { promotion: HomePromotion; image: string } => Boolean(entry.image))
+    .sort((first, second) => new Date(second.promotion.createdAt).getTime() - new Date(first.promotion.createdAt).getTime());
+  const promotionSlideIndex = homePromotionSlide - 1;
+  const replacementPromotion = promotionSlideIndex >= 0 && activeHomePromotions.length > 0
+    ? activeHomePromotions[promotionSlideIndex % activeHomePromotions.length]
+    : undefined;
+  const heroSlideCount = activeHomePromotions.length + 1;
+
+  const showPreviousHeroSlide = () => {
+    setHomePromotionSlide((current) => (current - 1 + heroSlideCount) % heroSlideCount);
+  };
+
+  const showNextHeroSlide = () => {
+    setHomePromotionSlide((current) => (current + 1) % heroSlideCount);
+  };
+
+  const handleHeroTouchStart = (event: React.TouchEvent<HTMLElement>) => {
+    heroTouchStartX.current = event.changedTouches[0]?.clientX ?? null;
+  };
+
+  const handleHeroTouchEnd = (event: React.TouchEvent<HTMLElement>) => {
+    const startX = heroTouchStartX.current;
+    heroTouchStartX.current = null;
+    const endX = event.changedTouches[0]?.clientX;
+    if (startX === null || endX === undefined || Math.abs(endX - startX) < 50) return;
+    if (endX < startX) showNextHeroSlide();
+    else showPreviousHeroSlide();
   };
 
   // 4 Featured Artworks matching all Categories button slide down bar.png
@@ -168,7 +213,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             : 'opacity-0 scale-y-95 -translate-y-3 pointer-events-none'
         }`}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-[1800px] px-3 sm:px-5 lg:px-8 2xl:px-10">
           <div className="shadow-2xl rounded-3xl">
             <AllCategoriesSlideDown
               selectedStyleChip={selectedStyle}
@@ -191,35 +236,58 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         {/* Discover Hero Section: "Discover Original Art by Emerging CAFA Artists" (Exact match to Home page.png) */}
-        <section className="pt-2 pb-2">
+        <section
+          className="pt-2 pb-2"
+          onTouchStart={handleHeroTouchStart}
+          onTouchEnd={handleHeroTouchEnd}
+        >
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
             {/* Left Content */}
             <div className="lg:col-span-7 space-y-5">
+              {replacementPromotion?.promotion.date && (
+                <p className="text-xs font-bold uppercase tracking-wider text-red-600">
+                  {new Date(`${replacementPromotion.promotion.date}T00:00:00`).toLocaleDateString()}
+                </p>
+              )}
               <h1 className="text-4xl sm:text-5xl lg:text-[54px] font-black text-slate-900 tracking-tight leading-[1.08]">
-                Discover Original Art by<br />
-                Emerging CAFA Artists
+                {replacementPromotion
+                  ? replacementPromotion.promotion.headline
+                  : <>Discover Original Art by<br />Emerging CAFA Artists</>}
               </h1>
               <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed max-w-lg">
-                Acquire hand-crafted paintings, fine art printworks, digital assets and miniature architectural mockups straight from the studios of Beijing&apos;s premier Fine Arts academy.
+                {replacementPromotion
+                  ? replacementPromotion.promotion.description
+                  : 'Acquire hand-crafted paintings, fine art printworks, digital assets and miniature architectural mockups straight from the studios of Beijing\'s premier Fine Arts academy.'}
               </p>
-              <div className="flex items-center gap-3.5 pt-2">
-                <button
-                  onClick={onNavigateToShop}
-                  className="px-6 py-3 rounded-full bg-[#E52535] hover:bg-[#c91d2c] text-white text-xs sm:text-sm font-bold shadow-sm transition-all flex items-center gap-2 cursor-pointer"
-                >
-                  <span>Shop Now</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={onNavigateToGallery}
-                  className="px-6 py-3 rounded-full bg-white hover:bg-neutral-50 text-slate-900 text-xs sm:text-sm font-bold border border-neutral-300 transition-all cursor-pointer shadow-2xs"
-                >
-                  Explore Gallery
-                </button>
-              </div>
+              {!replacementPromotion && (
+                <div className="flex items-center gap-3.5 pt-2">
+                  <button
+                    onClick={onNavigateToShop}
+                    className="px-6 py-3 rounded-full bg-[#E52535] hover:bg-[#c91d2c] text-white text-xs sm:text-sm font-bold shadow-sm transition-all flex items-center gap-2 cursor-pointer"
+                  >
+                    <span>Shop Now</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={onNavigateToGallery}
+                    className="px-6 py-3 rounded-full bg-white hover:bg-neutral-50 text-slate-900 text-xs sm:text-sm font-bold border border-neutral-300 transition-all cursor-pointer shadow-2xs"
+                  >
+                    Explore Gallery
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Right Showcase Cards (Overlapping cards as seen in Home page.png) */}
+            {replacementPromotion ? (
+              <div className="relative mx-auto w-full max-w-xl lg:col-span-5 lg:mx-0">
+                <img
+                  src={replacementPromotion.image}
+                  alt={replacementPromotion.promotion.headline}
+                  className="aspect-[4/3] w-full rounded-3xl bg-neutral-100 object-cover shadow-lg"
+                />
+              </div>
+            ) : (
             <div className="lg:col-span-5 relative flex items-center justify-center lg:justify-end min-h-[300px] pt-4 lg:pt-0">
               {/* Card 1: Reborn Petals (Behind, Left) */}
               <div className="w-40 sm:w-48 bg-white rounded-2xl p-2.5 shadow-md border border-neutral-200/90 -rotate-3 hover:rotate-0 transition-transform duration-300 z-10">
@@ -256,19 +324,67 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
               </div>
             </div>
+            )}
           </div>
+          {activeHomePromotions.length > 0 && (
+            <div
+              className="mt-3 flex items-center justify-center gap-2.5 lg:pl-[58.333333%]"
+              aria-label="Homepage carousel controls"
+            >
+              <button
+                type="button"
+                aria-label="Previous homepage slide"
+                onClick={showPreviousHeroSlide}
+                style={{ width: 7, height: 7, minWidth: 0, minHeight: 0 }}
+                className="flex shrink-0 items-center justify-center rounded-full border border-neutral-200 bg-white p-0 text-slate-700 transition-colors hover:bg-neutral-50"
+              >
+                <ChevronLeft className="h-3 w-3 shrink-0 stroke-[3]" />
+              </button>
+              <div className="flex items-center justify-center gap-1">
+                <button
+                  type="button"
+                  aria-label="Show original homepage"
+                  aria-current={homePromotionSlide === 0 ? 'true' : undefined}
+                  onClick={() => setHomePromotionSlide(0)}
+                  style={{ width: 6, height: 6, minWidth: 0, minHeight: 0 }}
+                  className={`shrink-0 rounded-full p-0 transition-colors ${
+                    homePromotionSlide === 0 ? 'bg-red-600' : 'bg-neutral-300 hover:bg-neutral-400'
+                  }`}
+                />
+                {activeHomePromotions.map(({ promotion }, index) => (
+                  <button
+                    key={promotion.id}
+                    type="button"
+                    aria-label={`Show homepage feature ${index + 1}`}
+                    aria-current={homePromotionSlide === index + 1 ? 'true' : undefined}
+                    onClick={() => setHomePromotionSlide(index + 1)}
+                    style={{ width: 6, height: 6, minWidth: 0, minHeight: 0 }}
+                    className={`shrink-0 rounded-full p-0 transition-colors ${
+                      homePromotionSlide === index + 1 ? 'bg-red-600' : 'bg-neutral-300 hover:bg-neutral-400'
+                    }`}
+                  />
+                ))}
+              </div>
+              <button
+                type="button"
+                aria-label="Next homepage slide"
+                onClick={showNextHeroSlide}
+                style={{ width: 7, height: 7, minWidth: 0, minHeight: 0 }}
+                className="flex shrink-0 items-center justify-center rounded-full border border-neutral-200 bg-white p-0 text-slate-700 transition-colors hover:bg-neutral-50"
+              >
+                <ChevronRight className="h-3 w-3 shrink-0 stroke-[3]" />
+              </button>
+            </div>
+          )}
         </section>
 
         {/* 2. Horizontal Style Chips Row (Exact match to all Categories button slide down bar.png) */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-          {styleChips.map((chip, idx) => {
-            const isSelected =
-              idx === 1
-                ? selectedStyle === chip || selectedStyle === 'Modern Expressionism'
-                : selectedStyle === chip && idx !== 1;
+        <div className="flex flex-wrap items-center gap-2 pb-1">
+          {styleChips.map((chip) => {
+            const isSelected = selectedStyle === chip;
             return (
               <button
-                key={idx}
+                key={chip}
                 onClick={() => setSelectedStyle(chip)}
                 className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                   isSelected

@@ -47,12 +47,24 @@ const isOrderData = (value: unknown): value is OrderData => (
   value.sellerTransactions.every(isSellerOrderTransaction)
 );
 
+const normalizePaymentMethod = (paymentMethod: string | undefined) => (
+  paymentMethod === 'Cash on delivery' || paymentMethod === 'Bank account'
+    ? 'GCash'
+    : paymentMethod
+);
+
 export const loadOrderData = (): OrderData => {
   const savedOrderData = window.localStorage.getItem(ORDER_DATA_KEY);
   if (!savedOrderData) {
     return {
-      orders: initialOrders,
-      sellerTransactions: initialSellerTransactions,
+      orders: initialOrders.map((order) => ({
+        ...order,
+        paymentMethod: normalizePaymentMethod(order.paymentMethod),
+      })),
+      sellerTransactions: initialSellerTransactions.map((transaction) => ({
+        ...transaction,
+        paymentMethod: normalizePaymentMethod(transaction.paymentMethod),
+      })),
     };
   }
 
@@ -61,10 +73,31 @@ export const loadOrderData = (): OrderData => {
     throw new Error('Saved order data is unreadable. Clear this site’s local storage and try again.');
   }
 
+  const defaultOrdersById = new Map(initialOrders.map((order) => [order.id, order]));
+  const orders = parsedData.orders.map((order) => {
+    const defaultOrder = defaultOrdersById.get(order.id);
+    if (!defaultOrder) return order;
+    return {
+      ...defaultOrder,
+      ...order,
+      paymentMethod: normalizePaymentMethod(order.paymentMethod ?? defaultOrder?.paymentMethod),
+      deliveryMethod: order.deliveryMethod ?? defaultOrder.deliveryMethod,
+      shippingProvider: order.shippingProvider ?? defaultOrder.shippingProvider,
+      trackingNumber: order.trackingNumber ?? defaultOrder.trackingNumber,
+      trackingUrl: order.trackingUrl ?? defaultOrder.trackingUrl,
+    };
+  });
+
   return {
-    orders: parsedData.orders,
+    orders,
     sellerTransactions: [
-      ...parsedData.sellerTransactions,
+      ...parsedData.sellerTransactions.map((transaction) => ({
+        ...transaction,
+        paymentMethod: normalizePaymentMethod(transaction.paymentMethod),
+        ...(String(transaction.fulfillmentStatus) === 'On the way'
+          ? { fulfillmentStatus: 'Shipped' as const }
+          : {}),
+      })),
       ...sampleSellerTransactions.filter(
         (sample) => !parsedData.sellerTransactions.some((transaction) => transaction.id === sample.id)
       ),

@@ -23,6 +23,7 @@ interface NavbarProps {
   onSelectTab: (tab: MarketplaceTab) => void;
   favoritesCount: number;
   cartCount: number;
+  unreadMessagesCount?: number;
   onOpenCart: () => void;
   isBuyerProfile?: boolean;
   userName: string;
@@ -41,6 +42,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSelectTab,
   favoritesCount,
   cartCount,
+  unreadMessagesCount = 0,
   onOpenCart,
   isBuyerProfile = false,
   userName,
@@ -187,9 +189,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <MessageSquare className="w-4 h-4 text-neutral-500" />
                     <span>Messages</span>
                   </div>
-                  <span className="w-4 h-4 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
-                    2
-                  </span>
+                  {unreadMessagesCount > 0 && (
+                    <span className="min-w-4 h-4 rounded-full bg-red-500 px-1 text-white text-[10px] font-bold flex items-center justify-center">
+                      {unreadMessagesCount}
+                    </span>
+                  )}
                 </button>
 
                 {/* 4. Security & privacy */}
@@ -324,7 +328,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               About Us
             </button>
             <button
-              onClick={() => onNavigateToBuyerTab?.('orders')}
+              onClick={() => onSelectTab('help')}
               className="hover:text-slate-900 transition-colors cursor-pointer"
             >
               Help Support

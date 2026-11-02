@@ -4,11 +4,15 @@ import { CustomerUser } from '../../types';
 
 interface AdminUsersCustomersViewProps {
   customers: CustomerUser[];
+  onToggleSuspended: (customer: CustomerUser) => boolean;
+  onRemoveAccount: (customer: CustomerUser) => boolean;
   onShowToast: (title: string, message?: string, type?: 'success' | 'info' | 'error') => void;
 }
 
 export const AdminUsersCustomersView: React.FC<AdminUsersCustomersViewProps> = ({
   customers,
+  onToggleSuspended,
+  onRemoveAccount,
   onShowToast,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -17,8 +21,28 @@ export const AdminUsersCustomersView: React.FC<AdminUsersCustomersViewProps> = (
   const filtered = customers.filter(
     (c) =>
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.handle.toLowerCase().includes(searchQuery.toLowerCase())
+      c.handle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const handleToggleSuspended = (customer: CustomerUser) => {
+    if (!onToggleSuspended(customer)) return;
+    setSelectedCust(null);
+    onShowToast(
+      customer.isSuspended ? 'Customer account reactivated' : 'Customer account suspended',
+      customer.isSuspended
+        ? `${customer.name} can sign in again.`
+        : `${customer.name} can no longer sign in.`,
+      'success'
+    );
+  };
+
+  const handleRemoveAccount = (customer: CustomerUser) => {
+    if (!window.confirm(`Permanently remove ${customer.name}'s customer account? This cannot be undone.`)) return;
+    if (!onRemoveAccount(customer)) return;
+    setSelectedCust(null);
+    onShowToast('Customer account removed', `${customer.name}'s account was removed.`, 'info');
+  };
 
   return (
     <div className="space-y-6 pb-12">
@@ -66,8 +90,10 @@ export const AdminUsersCustomersView: React.FC<AdminUsersCustomersViewProps> = (
               <h4 className="font-extrabold text-base text-slate-900">{cust.name}</h4>
               <p className="text-xs text-neutral-500 font-mono">{cust.handle}</p>
               <div className="pt-1">
-                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 inline-block">
-                  {cust.role}
+                <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold inline-block ${
+                  cust.isSuspended ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
+                }`}>
+                  {cust.isSuspended ? 'Suspended' : cust.role}
                 </span>
               </div>
             </div>
@@ -91,17 +117,31 @@ export const AdminUsersCustomersView: React.FC<AdminUsersCustomersViewProps> = (
           <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-neutral-200 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
               <h3 className="font-bold text-sm text-slate-900">Customer Profile</h3>
-              <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-[10px] font-bold rounded-full">
-                Active Patron
+              <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${
+                selectedCust.isSuspended ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
+              }`}>
+                {selectedCust.isSuspended ? 'Suspended' : 'Active Patron'}
               </span>
             </div>
             <div className="space-y-2 text-xs">
               <p><strong>Name:</strong> {selectedCust.name}</p>
               <p><strong>Handle:</strong> {selectedCust.handle}</p>
               <p><strong>Email:</strong> {selectedCust.email}</p>
-              <p><strong>Total Purchases:</strong> 2 Completed acquisitions</p>
+              <p><strong>Total Purchases:</strong> {selectedCust.completedPurchases ?? 0} completed acquisitions</p>
             </div>
-            <div className="flex justify-end pt-2">
+            <div className="flex flex-wrap justify-between gap-2 pt-2">
+              <button
+                onClick={() => handleToggleSuspended(selectedCust)}
+                className="px-3 py-2 rounded-xl border border-amber-300 text-amber-800 font-bold text-xs cursor-pointer"
+              >
+                {selectedCust.isSuspended ? 'Reactivate' : 'Suspend'}
+              </button>
+              <button
+                onClick={() => handleRemoveAccount(selectedCust)}
+                className="px-3 py-2 rounded-xl border border-red-200 text-red-700 font-bold text-xs cursor-pointer"
+              >
+                Remove Account
+              </button>
               <button
                 onClick={() => setSelectedCust(null)}
                 className="px-4 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs cursor-pointer"

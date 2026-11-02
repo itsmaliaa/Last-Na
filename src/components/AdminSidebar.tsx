@@ -6,17 +6,17 @@ import {
   Palette,
   Shield,
   KeyRound,
-  GraduationCap,
+  Store,
   UserCheck,
   AlertTriangle,
   History,
-  CheckCircle,
-  Hourglass,
   ChevronDown,
   ChevronUp,
   Menu,
   ShieldAlert,
   Search,
+  Megaphone,
+  MessageSquare,
 } from 'lucide-react';
 import { AdminTab } from '../types';
 
@@ -24,28 +24,22 @@ interface AdminSidebarProps {
   currentTab: AdminTab;
   onSelectTab: (tab: AdminTab) => void;
   pendingArtsCount: number;
-  pendingStudentsCount: number;
+  supportCount: number;
 }
 
 export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   currentTab,
   onSelectTab,
   pendingArtsCount,
-  pendingStudentsCount,
+  supportCount,
 }) => {
   const [manageUsersOpen, setManageUsersOpen] = useState(true);
-  const [studentVerificationOpen, setStudentVerificationOpen] = useState(true);
 
   const isManageUsersActive = [
     'users_admins',
     'users_students',
     'users_customers',
     'strikes_bans',
-  ].includes(currentTab);
-
-  const isStudentVerificationActive = [
-    'student_verification_pending',
-    'student_verification_verified',
   ].includes(currentTab);
 
   return (
@@ -72,6 +66,27 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           <span>Dashboard</span>
         </button>
 
+        <button
+          onClick={() => onSelectTab('customer_service')}
+          className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl font-medium transition-all text-left cursor-pointer ${
+            currentTab === 'customer_service'
+              ? 'bg-white text-[#8E1B24] font-semibold shadow-md translate-x-1'
+              : 'text-white/85 hover:text-white hover:bg-white/10'
+          }`}
+        >
+          <span className="flex items-center gap-3">
+            <MessageSquare className="h-4 w-4 shrink-0" />
+            <span>Help &amp; Support</span>
+          </span>
+          {supportCount > 0 && (
+            <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+              currentTab === 'customer_service' ? 'bg-red-100 text-red-700' : 'bg-white/20 text-white'
+            }`}>
+              {supportCount}
+            </span>
+          )}
+        </button>
+
         {/* Sales */}
         <button
           onClick={() => onSelectTab('sales')}
@@ -83,6 +98,19 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         >
           <TrendingUp className="w-4 h-4 shrink-0" />
           <span>Sales</span>
+        </button>
+
+        {/* Marketing */}
+        <button
+          onClick={() => onSelectTab('marketing')}
+          className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-medium transition-all text-left cursor-pointer ${
+            currentTab === 'marketing'
+              ? 'bg-white text-[#8E1B24] font-semibold shadow-md translate-x-1'
+              : 'text-white/85 hover:text-white hover:bg-white/10'
+          }`}
+        >
+          <Megaphone className="w-4 h-4 shrink-0" />
+          <span>Marketing</span>
         </button>
 
         {/* Bank Account & Escrow */}
@@ -169,7 +197,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 <span>Admins</span>
               </button>
 
-              {/* Students */}
+              {/* Seller Accounts */}
               <button
                 onClick={() => onSelectTab('users_students')}
                 className={`w-full flex items-center gap-3 px-4 py-2 rounded-xl text-xs font-medium transition-all text-left cursor-pointer ${
@@ -178,8 +206,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                     : 'text-white/80 hover:text-white hover:bg-white/10'
                 }`}
               >
-                <GraduationCap className="w-3.5 h-3.5 shrink-0" />
-                <span>Students</span>
+                <Store className="w-3.5 h-3.5 shrink-0" />
+                <span>Sellers</span>
               </button>
 
               {/* Customers */}
@@ -206,59 +234,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
               >
                 <ShieldAlert className="w-3.5 h-3.5 shrink-0 text-amber-300" />
                 <span>Strikes & Bans</span>
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Student Verification Dropdown */}
-        <div className="pt-2">
-          <button
-            onClick={() => setStudentVerificationOpen(!studentVerificationOpen)}
-            className="w-full flex items-center justify-between px-4 py-2 text-white/90 hover:text-white font-medium text-left cursor-pointer transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <Shield className="w-4 h-4 shrink-0" />
-              <span>Student Verification</span>
-            </div>
-            {studentVerificationOpen ? (
-              <ChevronUp className="w-3.5 h-3.5 opacity-70" />
-            ) : (
-              <ChevronDown className="w-3.5 h-3.5 opacity-70" />
-            )}
-          </button>
-
-          {studentVerificationOpen && (
-            <div className="pl-4 pr-1 py-1 space-y-1">
-              <button
-                onClick={() => onSelectTab('student_verification_pending')}
-                className={`w-full flex items-center justify-between px-4 py-2 rounded-xl text-xs font-medium transition-all text-left cursor-pointer ${
-                  currentTab === 'student_verification_pending'
-                    ? 'bg-white text-[#8E1B24] font-bold shadow-md translate-x-1'
-                    : 'text-white/80 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Hourglass className="w-3.5 h-3.5 shrink-0" />
-                  <span>Pending</span>
-                </div>
-                {pendingStudentsCount > 0 && (
-                  <span className="text-[10px] bg-amber-400 text-slate-900 font-bold px-1.5 py-0.2 rounded-full">
-                    {pendingStudentsCount}
-                  </span>
-                )}
-              </button>
-
-              <button
-                onClick={() => onSelectTab('student_verification_verified')}
-                className={`w-full flex items-center gap-3 px-4 py-2 rounded-xl text-xs font-medium transition-all text-left cursor-pointer ${
-                  currentTab === 'student_verification_verified'
-                    ? 'bg-white text-[#8E1B24] font-bold shadow-md translate-x-1'
-                    : 'text-white/80 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                <CheckCircle className="w-3.5 h-3.5 shrink-0" />
-                <span>Verified</span>
               </button>
             </div>
           )}

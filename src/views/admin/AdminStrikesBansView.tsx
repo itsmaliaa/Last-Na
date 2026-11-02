@@ -4,9 +4,9 @@ import { StrikeUser } from '../../types';
 
 interface AdminStrikesBansViewProps {
   strikes: StrikeUser[];
-  onAddStrike: (id: string) => void;
-  onClearStrikes: (id: string) => void;
-  onToggleBan: (id: string) => void;
+  onAddStrike: (id: string) => boolean;
+  onClearStrikes: (id: string) => boolean;
+  onToggleBan: (id: string) => boolean;
   onShowToast: (title: string, message?: string, type?: 'success' | 'info' | 'error') => void;
 }
 
@@ -147,8 +147,15 @@ export const AdminStrikesBansView: React.FC<AdminStrikesBansViewProps> = ({
                     {/* Strike Button */}
                     <button
                       onClick={() => {
-                        onAddStrike(item.id);
-                        onShowToast('Strike Recorded', `Strike issued to ${item.account}`, 'error');
+                        if (!onAddStrike(item.id)) return;
+                        const nextStrikeCount = Math.min(3, item.strikes + 1);
+                        onShowToast(
+                          nextStrikeCount >= 3 ? 'Account Banned' : 'Strike Recorded',
+                          nextStrikeCount >= 3
+                            ? `${item.account} reached three strikes and can no longer sign in.`
+                            : `Strike issued to ${item.account}`,
+                          nextStrikeCount >= 3 ? 'error' : 'info'
+                        );
                       }}
                       className="px-3.5 py-1.5 rounded-xl border border-amber-300 text-amber-700 bg-amber-50/50 hover:bg-amber-100 text-xs font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
                     >
@@ -160,7 +167,7 @@ export const AdminStrikesBansView: React.FC<AdminStrikesBansViewProps> = ({
                     {item.strikes > 0 && (
                       <button
                         onClick={() => {
-                          onClearStrikes(item.id);
+                          if (!onClearStrikes(item.id)) return;
                           onShowToast('Strikes Cleared', `Strikes reset for ${item.account}`, 'success');
                         }}
                         className="px-3.5 py-1.5 rounded-xl border border-emerald-300 text-emerald-700 bg-emerald-50/50 hover:bg-emerald-100 text-xs font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
@@ -173,7 +180,7 @@ export const AdminStrikesBansView: React.FC<AdminStrikesBansViewProps> = ({
                     {/* Ban Button */}
                     <button
                       onClick={() => {
-                        onToggleBan(item.id);
+                        if (!onToggleBan(item.id)) return;
                         onShowToast(
                           item.status === 'Active' ? 'Account Banned' : 'Account Re-enabled',
                           `${item.account} status changed to ${item.status === 'Active' ? 'Banned' : 'Active'}`,

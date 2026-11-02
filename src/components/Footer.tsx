@@ -4,9 +4,10 @@ import { ShieldCheck } from 'lucide-react';
 
 interface FooterProps {
   variant?: 'cafa' | 'buyer';
+  onNavigateToHelp?: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ variant = 'cafa' }) => {
+export const Footer: React.FC<FooterProps> = ({ variant = 'cafa', onNavigateToHelp }) => {
   return (
     <footer className="w-full bg-[#8E141A] text-white pt-14 pb-8 border-t border-red-900/40 select-none">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -70,7 +71,15 @@ export const Footer: React.FC<FooterProps> = ({ variant = 'cafa' }) => {
               <li><a href="#about" className="hover:text-white transition-colors">About Us</a></li>
               <li><a href="#exhibitions" className="hover:text-white transition-colors">Exhibitions Calendar</a></li>
               <li><a href="#inquiries" className="hover:text-white transition-colors">Vocation & Inquiries</a></li>
-              <li><a href="#support" className="hover:text-white transition-colors">Support Desk</a></li>
+              <li>
+                <button
+                  type="button"
+                  onClick={onNavigateToHelp}
+                  className="hover:text-white transition-colors"
+                >
+                  Support Desk
+                </button>
+              </li>
             </ul>
           </div>
         </div>

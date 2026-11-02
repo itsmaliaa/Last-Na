@@ -11,7 +11,8 @@ export type MarketplaceTab =
   | 'artists' 
   | 'artist_profile' 
   | 'gallery' 
-  | 'hearts';
+  | 'hearts'
+  | 'help';
 
 export type SellerTab = 
   | 'dashboard'
@@ -19,13 +20,11 @@ export type SellerTab =
   | 'shipping_fulfillment'
   | 'art_verification'
   | 'authenticity_check'
-  | 'marketing'
   | 'finance'
   | 'messages'
   | 'artist_gallery'
   | 'voucher_generator'
   | 'discount_code'
-  | 'promotions'
   | 'certificate'
   | 'logs'
   | 'stock';
@@ -46,8 +45,28 @@ export interface SellerOrderTransaction {
   orderNumber?: string;
   deliveryMethod?: 'campus_pickup' | 'door_to_door';
   paymentMethod?: string;
+  quantity?: number;
+  selectedSize?: string;
+  designChoice?: string;
+  buyerNote?: string;
+  voucherCode?: string;
+  discountAmount?: number;
+  selectedColor?: string;
+  selectedOptions?: Record<string, string>;
+  productType?: Artwork['productType'];
   deliveryAddress?: string;
-  fulfillmentStatus?: 'Processing' | 'Ready for pickup' | 'Shipped' | 'On the way' | 'Delivered';
+  receiptDetails?: {
+    buyerName: string;
+    buyerAddress: string;
+    buyerPhone?: string;
+    sellerName: string;
+    sellerAddress: string;
+    itemTitle: string;
+    quantity: number;
+    weight?: string;
+    size: string;
+  };
+  fulfillmentStatus?: 'Processing' | 'Ready for pickup' | 'Shipped' | 'Out for Delivery' | 'Delivered' | 'Returned';
   shippingProvider?: string;
   trackingNumber?: string;
   trackingUrl?: string;
@@ -63,14 +82,16 @@ export interface SellerOrderTransaction {
 
 export interface CheckoutDetails {
   deliveryMethod: 'campus_pickup' | 'door_to_door';
-  paymentMethod: string;
+  paymentMethod: PaymentMethod;
   recipientName: string;
   phone: string;
   deliveryAddress: string;
   addressId?: string;
+  buyerNote?: string;
+  voucherCode?: string;
 }
 
-export type ManualFulfillmentStatus = 'Ready for pickup' | 'Shipped';
+export type ManualFulfillmentStatus = 'Ready for pickup' | 'Shipped' | 'Out for Delivery';
 
 export interface ShipmentDetails {
   shippingProvider: string;
@@ -101,6 +122,7 @@ export interface BuyerAddress {
 export interface VoucherItem {
   id: string;
   code: string;
+  sellerName?: string;
   discountType: 'percentage' | 'fixed';
   discountValue: number;
   minSpend: number;
@@ -121,6 +143,18 @@ export interface SellerAnnouncement {
   status: 'Active' | 'Scheduled';
   createdAt: string;
   viewsCount?: number;
+}
+
+export interface HomePromotion {
+  id: string;
+  sellerName: string;
+  headline: string;
+  description: string;
+  artworkId?: string;
+  date?: string;
+  image?: string;
+  placement: 'add' | 'replace';
+  createdAt: string;
 }
 
 export interface ArtistDirectoryItem {
@@ -157,6 +191,7 @@ export type BuyerTab =
 export type AdminTab = 
   | 'dashboard' 
   | 'sales' 
+  | 'marketing'
   | 'bank_account'
   | 'art_verification' 
   | 'authenticity_check'
@@ -164,9 +199,8 @@ export type AdminTab =
   | 'users_students' 
   | 'users_customers' 
   | 'strikes_bans' 
-  | 'student_verification_pending' 
-  | 'student_verification_verified' 
-  | 'audit_logs';
+  | 'audit_logs'
+  | 'customer_service';
 
 export interface Artwork {
   id: string;
@@ -177,6 +211,7 @@ export interface Artwork {
   schoolNumber?: string;
   course?: string;
   image: string;
+  video?: string;
   price: number; // in PHP ₱
   size: string;
   genre?: string;
@@ -196,7 +231,26 @@ export interface Artwork {
   heartsCount?: number;
   stock?: number;
   editionType?: 'Original 1/1' | 'Limited Edition' | 'Art Print';
+  productType?: 'pre_made' | 'digital' | 'custom_made';
+  fulfillmentType?: 'physical' | 'digital';
+  availablePayments?: PaymentMethod[];
+  weightKg?: number;
+  designOptions?: string[];
+  sizeOptions?: string[];
+  colorOptions?: string[];
+  optionGroups?: ArtworkOptionGroup[];
+  shopName?: string;
+  shopAddress?: string;
 }
+
+export interface ArtworkOptionGroup {
+  id: string;
+  name: string;
+  options: string[];
+  optionImages?: Record<string, string>;
+}
+
+export type PaymentMethod = 'Maya' | 'GCash';
 
 export interface RankedArtist {
   id: string;
@@ -211,14 +265,18 @@ export interface RankedArtist {
 
 export interface OrderItem {
   id: string;
+  artworkId?: string;
   orderNumber: string;
   title: string;
   artist: string;
   buyerEmail?: string;
   medium: string;
   status: 'Processing' | 'Ready for pickup' | 'In transit' | 'Return eligible' | 'Completed';
+  fulfillmentStatus?: SellerOrderTransaction['fulfillmentStatus'];
   dateInfo: string;
   price: number;
+  voucherCode?: string;
+  discountAmount?: number;
   image: string;
   deliveryMethod?: 'campus_pickup' | 'door_to_door';
   paymentMethod?: string;
@@ -234,6 +292,47 @@ export interface OrderItem {
   deliveryRiderName?: string;
   deliveryRiderPhone?: string;
   completedAt?: string;
+  returnDueAt?: string;
+  quantity?: number;
+  selectedSize?: string;
+  designChoice?: string;
+  buyerNote?: string;
+  selectedColor?: string;
+  selectedOptions?: Record<string, string>;
+  productType?: Artwork['productType'];
+}
+
+export interface ArtworkReview {
+  orderId: string;
+  artworkId?: string;
+  artworkTitle: string;
+  artist: string;
+  buyerEmail: string;
+  buyerName: string;
+  rating: number;
+  text: string;
+  createdAt: string;
+  sellerReply?: string;
+  sellerReplyAt?: string;
+}
+
+export type RefundRequestStatus = 'pending' | 'approved' | 'declined';
+
+export interface RefundRequest {
+  id: string;
+  orderId: string;
+  orderNumber: string;
+  artworkTitle: string;
+  artist: string;
+  buyerName: string;
+  buyerEmail: string;
+  issueType: 'received_with_issues' | 'not_received';
+  reason: string;
+  details: string;
+  evidenceImage: string;
+  status: RefundRequestStatus;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ChatMessage {
@@ -241,15 +340,24 @@ export interface ChatMessage {
   sender: 'buyer' | 'seller' | 'support';
   text: string;
   time: string;
+  refundRequestId?: string;
 }
 
 export interface Conversation {
   id: string;
+  orderId?: string;
+  buyerName?: string;
+  buyerEmail?: string;
+  sellerName?: string;
+  isSupport?: boolean;
   name: string;
   email: string;
   lastMessage: string;
   time: string;
   unread: boolean;
+  buyerUnread?: boolean;
+  sellerUnread?: boolean;
+  adminUnread?: boolean;
   avatarBg: string;
   avatarInitials: string;
   subject: string;
@@ -272,6 +380,7 @@ export interface StudentUser {
   yearLevel: string;
   email: string;
   status: 'Verified' | 'Pending' | 'Rejected';
+  isSuspended?: boolean;
   documentName: string;
 }
 
@@ -281,6 +390,8 @@ export interface CustomerUser {
   handle: string;
   email: string;
   role: 'Customer';
+  isSuspended?: boolean;
+  completedPurchases?: number;
 }
 
 export interface StrikeUser {
@@ -305,4 +416,10 @@ export interface AuditLogItem {
 export interface CartItem {
   artwork: Artwork;
   quantity: number;
+  lineId?: string;
+  selectedSize?: string;
+  designChoice?: string;
+  buyerNote?: string;
+  selectedColor?: string;
+  selectedOptions?: Record<string, string>;
 }

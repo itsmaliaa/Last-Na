@@ -3,17 +3,22 @@ import { Ticket, Plus, Copy, Check, Clock, Percent, DollarSign, Trash2 } from 'l
 import { VoucherItem } from '../../types';
 
 interface SellerVoucherGeneratorViewProps {
-  initialVouchers: VoucherItem[];
+  vouchers: VoucherItem[];
+  sellerName: string;
+  onCreateVoucher: (voucher: VoucherItem) => boolean;
+  onDeactivateVoucher: (id: string, sellerName: string) => boolean;
   onShowToast: (title: string, msg?: string, type?: 'success' | 'info' | 'error') => void;
   mode?: 'voucher' | 'discount';
 }
 
 export const SellerVoucherGeneratorView: React.FC<SellerVoucherGeneratorViewProps> = ({
-  initialVouchers,
+  vouchers,
+  sellerName,
+  onCreateVoucher,
+  onDeactivateVoucher,
   onShowToast,
   mode = 'voucher',
 }) => {
-  const [vouchers, setVouchers] = useState<VoucherItem[]>(initialVouchers);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [code, setCode] = useState('');
   const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>(
@@ -37,20 +42,33 @@ export const SellerVoucherGeneratorView: React.FC<SellerVoucherGeneratorViewProp
       onShowToast('Missing Code', 'Please enter or generate a voucher code.', 'error');
       return;
     }
+    if (
+      !Number.isFinite(discountValue) ||
+      discountValue <= 0 ||
+      (discountType === 'percentage' && discountValue > 100) ||
+      !Number.isFinite(minSpend) ||
+      minSpend < 0 ||
+      !Number.isSafeInteger(usageLimit) ||
+      usageLimit < 1
+    ) {
+      onShowToast('Invalid voucher settings', 'Enter a positive discount, non-negative minimum spend, and redemption limit.', 'error');
+      return;
+    }
 
     const newVoucher: VoucherItem = {
       id: `vch-${Date.now()}`,
       code: code.trim().toUpperCase(),
+      sellerName,
       discountType,
       discountValue: Number(discountValue),
       minSpend: Number(minSpend),
       usageLimit: Number(usageLimit),
       usedCount: 0,
-      expiresAt: '2026-12-31',
+      expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
       status: 'Active',
     };
 
-    setVouchers([newVoucher, ...vouchers]);
+    if (!onCreateVoucher(newVoucher)) return;
     setShowCreateModal(false);
     setCode('');
     onShowToast('Voucher Created', `Code "${newVoucher.code}" is now live for buyers.`, 'success');
@@ -64,9 +82,13 @@ export const SellerVoucherGeneratorView: React.FC<SellerVoucherGeneratorViewProp
   };
 
   const handleDeleteVoucher = (id: string) => {
-    setVouchers(vouchers.filter((v) => v.id !== id));
+    if (!onDeactivateVoucher(id, sellerName)) return;
     onShowToast('Voucher Deactivated', 'The voucher was removed from circulation.', 'info');
   };
+
+  const sellerVouchers = vouchers.filter((voucher) => (
+    voucher.sellerName?.toLowerCase() === sellerName.toLowerCase()
+  ));
 
   return (
     <div className="space-y-6">
@@ -101,7 +123,7 @@ export const SellerVoucherGeneratorView: React.FC<SellerVoucherGeneratorViewProp
       <div className="bg-white rounded-2xl border border-neutral-200/80 shadow-2xs overflow-hidden">
         <div className="p-6 border-b border-neutral-100 flex items-center justify-between">
           <h3 className="font-bold text-sm text-slate-900">Active Seller Vouchers</h3>
-          <span className="text-xs text-neutral-500">{vouchers.length} codes registered</span>
+          <span className="text-xs text-neutral-500">{sellerVouchers.length} codes registered</span>
         </div>
 
         <div className="overflow-x-auto">
@@ -118,7 +140,7 @@ export const SellerVoucherGeneratorView: React.FC<SellerVoucherGeneratorViewProp
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
-              {vouchers.map((v) => (
+              {sellerVouchers.map((v) => (
                 <tr key={v.id} className="hover:bg-neutral-50/70 transition-colors">
                   <td className="p-4">
                     <div className="flex items-center gap-2">
@@ -156,14 +178,19 @@ export const SellerVoucherGeneratorView: React.FC<SellerVoucherGeneratorViewProp
                   </td>
 
                   <td className="p-4 whitespace-nowrap">
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      Active
+                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
+                      v.status === 'Active'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-neutral-100 text-neutral-600 border-neutral-200'
+                    }`}>
+                      {v.status}
                     </span>
                   </td>
 
                   <td className="p-4 text-right">
                     <button
                       onClick={() => handleDeleteVoucher(v.id)}
+                      disabled={v.status !== 'Active'}
                       className="p-1.5 text-neutral-400 hover:text-red-600 rounded-lg hover:bg-neutral-100 transition-colors cursor-pointer"
                       title="Deactivate Voucher"
                     >
@@ -233,6 +260,9 @@ export const SellerVoucherGeneratorView: React.FC<SellerVoucherGeneratorViewProp
                   <input
                     type="number"
                     required
+                    min="0.01"
+                    max={discountType === 'percentage' ? 100 : undefined}
+                    step="0.01"
                     value={discountValue}
                     onChange={(e) => setDiscountValue(Number(e.target.value))}
                     className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-xs font-bold focus:outline-none focus:border-red-500"
@@ -245,6 +275,8 @@ export const SellerVoucherGeneratorView: React.FC<SellerVoucherGeneratorViewProp
                   <label className="block font-bold text-slate-700 mb-1">Min. Order Spend (₱)</label>
                   <input
                     type="number"
+                    min="0"
+                    step="0.01"
                     value={minSpend}
                     onChange={(e) => setMinSpend(Number(e.target.value))}
                     className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-xs focus:outline-none"
@@ -255,6 +287,8 @@ export const SellerVoucherGeneratorView: React.FC<SellerVoucherGeneratorViewProp
                   <label className="block font-bold text-slate-700 mb-1">Max Redemptions</label>
                   <input
                     type="number"
+                    min="1"
+                    step="1"
                     value={usageLimit}
                     onChange={(e) => setUsageLimit(Number(e.target.value))}
                     className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-xs focus:outline-none"

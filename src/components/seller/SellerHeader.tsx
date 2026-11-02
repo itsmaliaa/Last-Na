@@ -1,18 +1,14 @@
 import React, { useState } from 'react';
-import { Search, Bell, Settings, LogOut, ShoppingBag } from 'lucide-react';
+import { Bell, Settings, LogOut } from 'lucide-react';
 import { RedNexusLogo } from '../RedNexusLogo';
 
 interface SellerHeaderProps {
-  searchQuery: string;
-  onSearchChange: (q: string) => void;
   userName: string;
   onSignOut: () => void;
   onOpenSettings?: () => void;
 }
 
 export const SellerHeader: React.FC<SellerHeaderProps> = ({
-  searchQuery,
-  onSearchChange,
   userName,
   onSignOut,
   onOpenSettings,
@@ -24,20 +20,6 @@ export const SellerHeader: React.FC<SellerHeaderProps> = ({
       {/* Left: Red Nexus Logo */}
       <div className="shrink-0" title="Red Nexus Seller Portal">
         <RedNexusLogo size="md" />
-      </div>
-
-      {/* Search Input in Top Bar (Matches image: "Search artworks, submitters, or documents...") */}
-      <div className="flex-1 max-w-xl mx-2 sm:mx-6">
-        <div className="relative">
-          <Search className="w-4 h-4 text-neutral-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Search artworks, submitters, or documents..."
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-11 pr-4 py-2 text-sm bg-neutral-100/90 border border-transparent rounded-full focus:bg-white focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 transition-all placeholder:text-neutral-400 text-slate-800"
-          />
-        </div>
       </div>
 
       {/* Right Controls */}

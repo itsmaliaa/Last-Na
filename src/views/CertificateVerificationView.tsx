@@ -4,14 +4,12 @@ import { Artwork } from '../types';
 
 interface CertificateVerificationViewProps {
   artwork?: Artwork;
-  certificateNumber: string;
 }
 
 export const CertificateVerificationView: React.FC<CertificateVerificationViewProps> = ({
   artwork,
-  certificateNumber,
 }) => {
-  const verifiedArtwork = artwork && artwork.status === 'approved' && certificateNumber.trim()
+  const verifiedArtwork = artwork && artwork.status === 'approved'
     ? artwork
     : undefined;
   const isVerified = Boolean(verifiedArtwork);
@@ -58,10 +56,6 @@ export const CertificateVerificationView: React.FC<CertificateVerificationViewPr
                   <div>
                     <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Artwork ID</dt>
                     <dd className="mt-1 font-mono font-bold text-slate-900">{verifiedArtwork.id}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Certificate ID</dt>
-                    <dd className="mt-1 font-mono font-bold text-slate-900">{certificateNumber}</dd>
                   </div>
                 </dl>
               </div>

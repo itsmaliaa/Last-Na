@@ -13,8 +13,10 @@ import { StudentUser } from '../../types';
 interface AdminUsersStudentsViewProps {
   students: StudentUser[];
   filterStatus?: 'All' | 'Pending' | 'Verified';
-  onApproveStudent: (id: string) => void;
-  onRejectStudent: (id: string) => void;
+  onApproveStudent: (id: string) => boolean;
+  onRejectStudent: (id: string) => boolean;
+  onToggleSuspended: (student: StudentUser) => boolean;
+  onRemoveAccount: (student: StudentUser) => boolean;
   onShowToast: (title: string, message?: string, type?: 'success' | 'info' | 'error') => void;
 }
 
@@ -23,6 +25,8 @@ export const AdminUsersStudentsView: React.FC<AdminUsersStudentsViewProps> = ({
   filterStatus = 'All',
   onApproveStudent,
   onRejectStudent,
+  onToggleSuspended,
+  onRemoveAccount,
   onShowToast,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -43,26 +47,45 @@ export const AdminUsersStudentsView: React.FC<AdminUsersStudentsViewProps> = ({
   });
 
   const handleApprove = (student: StudentUser) => {
-    onApproveStudent(student.id);
+    if (!onApproveStudent(student.id)) return;
     setSelectedStudent(null);
-    onShowToast('Student Approved', `${student.name} is now a verified CAFA student artist.`, 'success');
+    onShowToast('Seller Account Approved', `${student.name} is now a verified seller.`, 'success');
   };
 
   const handleReject = (student: StudentUser) => {
-    onRejectStudent(student.id);
+    if (!onRejectStudent(student.id)) return;
     setSelectedStudent(null);
-    onShowToast('Student Rejected', `Verification for ${student.name} was rejected.`, 'error');
+    onShowToast('Seller Account Rejected', `Seller verification for ${student.name} was rejected.`, 'error');
+  };
+
+  const handleToggleSuspended = (student: StudentUser) => {
+    if (!onToggleSuspended(student)) return;
+    setSelectedStudent(null);
+    onShowToast(
+      student.isSuspended ? 'Seller account reactivated' : 'Seller account suspended',
+      student.isSuspended
+        ? `${student.name} can sign in again.`
+        : `${student.name} can no longer sign in.`,
+      'success'
+    );
+  };
+
+  const handleRemoveAccount = (student: StudentUser) => {
+    if (!window.confirm(`Permanently remove ${student.name}'s seller account? This cannot be undone.`)) return;
+    if (!onRemoveAccount(student)) return;
+    setSelectedStudent(null);
+    onShowToast('Seller account removed', `${student.name}'s account was removed.`, 'info');
   };
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Search Input Bar (Exact match to Student.png) */}
+      {/* Seller account search */}
       <div className="bg-white rounded-3xl p-4 sm:p-5 border border-neutral-200/90 shadow-xs">
         <div className="relative">
           <Search className="w-4 h-4 text-neutral-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
-            placeholder="Search student name, school number, course..."
+            placeholder="Search seller name, school number, or course..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-11 pr-4 py-2.5 text-xs bg-neutral-50/80 border border-neutral-200 rounded-full focus:bg-white focus:outline-none focus:border-red-400"
@@ -70,7 +93,7 @@ export const AdminUsersStudentsView: React.FC<AdminUsersStudentsViewProps> = ({
         </div>
       </div>
 
-      {/* Student Cards Grid (Exact match to Student.png) */}
+      {/* Seller account cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {filtered.map((stu) => (
           <div
@@ -103,12 +126,14 @@ export const AdminUsersStudentsView: React.FC<AdminUsersStudentsViewProps> = ({
               <div className="pt-1">
                 <span
                   className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold inline-block ${
-                    stu.status === 'Verified'
+                    stu.isSuspended
+                      ? 'bg-red-100 text-red-800'
+                      : stu.status === 'Verified'
                       ? 'bg-emerald-100 text-emerald-800'
                       : 'bg-amber-100 text-amber-800'
                   }`}
                 >
-                  {stu.status}
+                  {stu.isSuspended ? 'Suspended' : stu.status}
                 </span>
               </div>
             </div>
@@ -127,7 +152,7 @@ export const AdminUsersStudentsView: React.FC<AdminUsersStudentsViewProps> = ({
         ))}
       </div>
 
-      {/* Student Credential Verification Modal (Exact match to Students 2.png) */}
+      {/* Seller credential verification modal */}
       {selectedStudent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs overflow-y-auto">
           <div className="bg-white rounded-3xl max-w-xl w-full shadow-2xl border border-neutral-200 overflow-hidden animate-in fade-in zoom-in-95 my-8">
@@ -138,7 +163,7 @@ export const AdminUsersStudentsView: React.FC<AdminUsersStudentsViewProps> = ({
                   <School className="w-4 h-4" />
                 </div>
                 <h3 className="font-extrabold text-base text-slate-900">
-                  Student Credential Verification
+                  Seller Account Verification
                 </h3>
               </div>
               <button
@@ -153,7 +178,7 @@ export const AdminUsersStudentsView: React.FC<AdminUsersStudentsViewProps> = ({
             <div className="p-6 space-y-6 text-xs">
               <div className="space-y-3 p-5 rounded-2xl bg-neutral-50 border border-neutral-200/80">
                 <div className="flex justify-between">
-                  <span className="text-neutral-500 font-medium">Applicant:</span>
+                  <span className="text-neutral-500 font-medium">Seller:</span>
                   <span className="font-bold text-slate-900 text-sm">{selectedStudent.name}</span>
                 </div>
                 <div className="flex justify-between">
@@ -192,8 +217,20 @@ export const AdminUsersStudentsView: React.FC<AdminUsersStudentsViewProps> = ({
               </div>
             </div>
 
-            {/* Bottom Actions: Reject, Approve Student, Close */}
-            <div className="p-5 border-t border-neutral-100 bg-neutral-50/50 flex items-center justify-end gap-3">
+            {/* Bottom Actions */}
+            <div className="p-5 border-t border-neutral-100 bg-neutral-50/50 flex flex-wrap items-center justify-end gap-3">
+              <button
+                onClick={() => handleToggleSuspended(selectedStudent)}
+                className="px-5 py-2.5 rounded-xl border border-amber-300 bg-white text-amber-800 font-bold text-xs transition-colors cursor-pointer"
+              >
+                {selectedStudent.isSuspended ? 'Reactivate' : 'Suspend'}
+              </button>
+              <button
+                onClick={() => handleRemoveAccount(selectedStudent)}
+                className="px-5 py-2.5 rounded-xl border border-red-200 bg-white text-red-700 font-bold text-xs transition-colors cursor-pointer"
+              >
+                Remove Account
+              </button>
               <button
                 onClick={() => handleReject(selectedStudent)}
                 className="px-5 py-2.5 rounded-xl bg-[#DC2626] hover:bg-red-700 text-white font-bold text-xs transition-colors cursor-pointer"
@@ -204,7 +241,7 @@ export const AdminUsersStudentsView: React.FC<AdminUsersStudentsViewProps> = ({
                 onClick={() => handleApprove(selectedStudent)}
                 className="px-5 py-2.5 rounded-xl bg-[#10B981] hover:bg-emerald-600 text-white font-bold text-xs transition-colors cursor-pointer"
               >
-                Approve Student
+                Approve Seller
               </button>
               <button
                 onClick={() => setSelectedStudent(null)}

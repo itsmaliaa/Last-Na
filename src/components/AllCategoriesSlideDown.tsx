@@ -31,28 +31,13 @@ export const AllCategoriesSlideDown: React.FC<AllCategoriesSlideDownProps> = ({
   priceValue,
   onChangePrice,
 }) => {
-  // Exact 2 rows of style pills from all Categories button slide down bar.png
-  const pillRow1 = [
+  const stylePills = [
     'All Style',
     'Modern Expressionism',
     'Minimalist Geometry',
     'Abstract Form',
     'Traditional Chinese Ink',
     'Pop Art',
-    'Cute / Kawaii',
-    'Cute / Kawaii',
-    'Cute / Kawaii',
-  ];
-
-  const pillRow2 = [
-    'All Style',
-    'Minimalist Geometry',
-    'Minimalist Geometry',
-    'Abstract Form',
-    'Traditional Chinese Ink',
-    'Pop Art',
-    'Cute / Kawaii',
-    'Cute / Kawaii',
     'Cute / Kawaii',
   ];
 
@@ -99,55 +84,25 @@ export const AllCategoriesSlideDown: React.FC<AllCategoriesSlideDownProps> = ({
   ];
 
   return (
-    <div className="w-full bg-white rounded-3xl p-6 sm:p-8 border border-neutral-200/90 shadow-xl space-y-6 transition-all animate-in fade-in slide-in-from-top-4 duration-300">
-      {/* 1. Two Rows of Style Pills (Exact match to all Categories button slide down bar.png) */}
-      <div className="space-y-2.5 overflow-x-auto pb-1 no-scrollbar">
-        {/* Row 1 */}
-        <div className="flex items-center gap-2 shrink-0">
-          {pillRow1.map((pill, idx) => {
-            const isSelected =
-              idx === 1
-                ? selectedStyleChip === pill || selectedStyleChip === 'Modern Expressionism'
-                : selectedStyleChip === pill && idx !== 1;
-            return (
-              <button
-                key={`r1-${idx}`}
-                onClick={() => onSelectStyleChip(pill)}
-                className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                  isSelected
-                    ? 'bg-[#E52535] text-white shadow-xs'
-                    : 'bg-white text-slate-700 border border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50'
-                }`}
-              >
-                {pill}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Row 2 */}
-        <div className="flex items-center gap-2 shrink-0">
-          {pillRow2.map((pill, idx) => {
-            const isSelected = selectedStyleChip === `${pill}-${idx}`;
-            return (
-              <button
-                key={`r2-${idx}`}
-                onClick={() => onSelectStyleChip(`${pill}-${idx}`)}
-                className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                  isSelected
-                    ? 'bg-[#E52535] text-white shadow-xs'
-                    : 'bg-white text-slate-700 border border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50'
-                }`}
-              >
-                {pill}
-              </button>
-            );
-          })}
-        </div>
+    <div className="w-full bg-white rounded-3xl p-4 sm:p-6 lg:p-8 border border-neutral-200/90 shadow-xl space-y-5 transition-all animate-in fade-in slide-in-from-top-4 duration-300">
+      <div className="flex flex-wrap items-center gap-2 pb-1">
+        {stylePills.map((pill) => (
+          <button
+            key={pill}
+            onClick={() => onSelectStyleChip(pill)}
+            className={`rounded-full px-4 py-2 text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+              selectedStyleChip === pill
+                ? 'bg-[#E52535] text-white shadow-xs'
+                : 'bg-white text-slate-700 border border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50'
+            }`}
+          >
+            {pill}
+          </button>
+        ))}
       </div>
 
       {/* 2. Five Filter Columns (Exact match to all Categories button slide down bar.png) */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-6 sm:gap-8 pt-2 border-t border-neutral-100 text-xs">
+      <div className="grid grid-cols-1 gap-5 border-t border-neutral-100 pt-4 text-xs sm:grid-cols-2 lg:grid-cols-5 lg:gap-6 [&>*]:min-w-0">
         {/* Column 1: Art Type */}
         <div>
           <h4 className="font-bold text-slate-900 mb-3.5 text-sm">Art Type</h4>
@@ -238,42 +193,23 @@ export const AllCategoriesSlideDown: React.FC<AllCategoriesSlideDownProps> = ({
         {/* Column 4: Color Palette */}
         <div>
           <h4 className="font-bold text-slate-900 mb-3.5 text-sm">Color Palette</h4>
-          <div className="space-y-2.5">
-            {/* Row 1: 7 swatches */}
-            <div className="flex items-center gap-2">
-              {colorSwatchesRow1.map((c) => {
-                const isSelected = selectedColor === c.name;
-                return (
-                  <button
-                    key={c.name}
-                    onClick={() => onSelectColor(isSelected ? null : c.name)}
-                    style={{ backgroundColor: c.hex }}
-                    className={`w-5 h-5 rounded-full transition-transform cursor-pointer relative ${
-                      c.border ? 'border border-neutral-300' : ''
-                    } ${isSelected ? 'scale-125 ring-2 ring-red-500 ring-offset-2' : 'hover:scale-110'}`}
-                    title={c.name}
-                  />
-                );
-              })}
-            </div>
-
-            {/* Row 2: Black swatch */}
-            <div className="flex items-center gap-2">
-              {colorSwatchesRow2.map((c) => {
-                const isSelected = selectedColor === c.name;
-                return (
-                  <button
-                    key={c.name}
-                    onClick={() => onSelectColor(isSelected ? null : c.name)}
-                    style={{ backgroundColor: c.hex }}
-                    className={`w-5 h-5 rounded-full transition-transform cursor-pointer relative ${
-                      isSelected ? 'scale-125 ring-2 ring-red-500 ring-offset-2' : 'hover:scale-110'
-                    }`}
-                    title={c.name}
-                  />
-                );
-              })}
-            </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {[...colorSwatchesRow1, ...colorSwatchesRow2].map((c) => {
+              const isSelected = selectedColor === c.name;
+              return (
+                <button
+                  key={c.name}
+                  onClick={() => onSelectColor(isSelected ? null : c.name)}
+                  style={{ backgroundColor: c.hex }}
+                  className={`h-8 w-8 rounded-full transition-transform cursor-pointer relative ${
+                    ('border' in c && c.border) ? 'border border-neutral-300' : ''
+                  } ${isSelected ? 'scale-110 ring-2 ring-red-500 ring-offset-2' : 'hover:scale-105'}`}
+                  title={c.name}
+                  aria-label={c.name}
+                  aria-pressed={isSelected}
+                />
+              );
+            })}
           </div>
         </div>
 
